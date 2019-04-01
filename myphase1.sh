@@ -13,9 +13,10 @@
     --horiz_weight=0.3 \
     --vert_weight=0.1 \
     --batch_size 1000 \
-    --max_hours=8 \
-    --max_compute_steps=40000000 \
-    --remember_rooms 
+    --max_hours=10 \
+    --max_compute_steps=50000000 \
+    --remember_rooms \
+    --max_level=3 
 	#--pictures \
 	#--pp \
 	#--ip \
