@@ -389,10 +389,7 @@ class PacmanSelector:
     def choose_cell(self, known_cells, size=1):
         to_choose = list(known_cells.keys())
         self.set_ranges(to_choose)
-        if not isinstance(to_choose[0], tuple):
-            possible_scores = sorted(set(e.score for e in to_choose), key=convert_score)
-        else:
-            possible_scores = sorted(set(e.score for e in known_cells.values()))
+        possible_scores = sorted(set(e.score for e in known_cells.values()))
         if len(to_choose) == 1:
             return [to_choose[0]] * size
         weights = [
