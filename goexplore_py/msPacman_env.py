@@ -124,9 +124,7 @@ class MyMsPacman:
         self.x_repeat = x_repeat
         self.cur_lives = 5
         self.ignore_ram_death = False
-        self.objects_from_pixels = objects_from_pixels
-        self.objects_remember_rooms = objects_remember_rooms
-        self.only_keys = only_keys
+
 
     def __getattr__(self, e):
         return getattr(self.env, e)
