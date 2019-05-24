@@ -337,7 +337,7 @@ def _run(resolution=16, score_objects=True, mean_repeat=20,
 				n_iters += 1
 
 
-				entry = [summary.Summary.Value(tag='Rooms_Found', simple_value=len(get_env().rooms))]
+				entry = [summary.Summary.Value(tag='Rooms_Found', simple_value=len(Counter( (e.room, e.level) for e in expl.grid).keys()))]
 				entry.append(summary.Summary.Value(tag='Cells', simple_value=len(expl.grid)))
 				entry.append(summary.Summary.Value(tag='Top_score', simple_value=max(e.score for e in expl.grid.values())))
 				if game != "nchain":

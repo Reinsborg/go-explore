@@ -12,14 +12,15 @@ from baselines.common.atari_wrappers import *
 
 
 class PacmanPosLevel:
-    __slots__ = ['level', 'score', 'x', 'y', 'tuple']
+    __slots__ = ['level', 'score', 'room', 'x', 'y', 'tuple']
 
-    def __init__(self, level, score, x, y):
+    def __init__(self, level, score, room, x, y):
         self.level = level
         self.score = score
+        self.room = room
         self.x = x
         self.y = y
-
+        assert  self.level == self.room, f'level and room inconsistency, l:{level} r:{room}'
         self.set_tuple()
 
     def set_tuple(self):
@@ -38,6 +39,7 @@ class PacmanPosLevel:
 
     def __setstate__(self, d):
         self.level, self.score, self.x, self.y = d
+        assert self.level == self.room, f'level and room inconsistency, l:{self.level} r:{self.room}'
         self.tuple = d
 
     def __repr__(self):
@@ -98,7 +100,7 @@ class MyMsPacman:
         self.check_death = check_death
         self.cur_steps = 0
         self.cur_score = 0
-        self.levels = {}
+        self.rooms = {}
         self.room_time = None
         self.room_threshold = 40
         self.unwrapped.seed(0)
@@ -130,8 +132,8 @@ class MyMsPacman:
         self.ram_death_state = -1
         self.pos = None
         self.pos = self.pos_from_unprocessed_state(self.get_face_pixels(unprocessed_state), unprocessed_state)
-        if self.get_pos().level not in self.levels:
-            self.levels[self.get_pos().level] = (False, unprocessed_state[50:].repeat(self.x_repeat, axis=1))
+        if self.get_pos().level not in self.rooms:
+            self.rooms[self.get_pos().level] = (False, unprocessed_state[50:].repeat(self.x_repeat, axis=1))
         self.room_time = (self.get_pos().level, 0)
         if self.unprocessed_state:
             return observation
@@ -157,7 +159,7 @@ class MyMsPacman:
 
         score = self.cur_score
 
-        return PacmanPosLevel(level, score, x, y)
+        return PacmanPosLevel(level, score, level, x, y)
 
 
 
@@ -252,10 +254,10 @@ class MyMsPacman:
         if self.pos.level != self.room_time[0]:
             self.room_time = (self.pos.level, 0)
         self.room_time = (self.pos.room, self.room_time[1] + 1)
-        if (self.pos.level not in self.levels or
+        if (self.pos.level not in self.rooms or
                 (self.room_time[1] == self.room_threshold and
-                 not self.levels[self.pos.level][0])):
-            self.levels[self.pos.level] = (
+                 not self.rooms[self.pos.level][0])):
+            self.rooms[self.pos.level] = (
                 self.room_time[1] == self.room_threshold,
                 unprocessed_state[:-40].repeat(self.x_repeat, axis=1)
             )
@@ -269,7 +271,7 @@ class MyMsPacman:
 
     def render_with_known(self, known_positions, resolution, show=True, filename=None, combine_val=max,
                           get_val=lambda x: x.score, minmax=None):
-        height, width = list(self.levels.values())[0][1].shape[:2]
+        height, width = list(self.rooms.values())[0][1].shape[:2]
 
         final_image = np.zeros((height * 4, width * 9, 3), dtype=np.uint8) + 255
 
@@ -285,8 +287,8 @@ class MyMsPacman:
         points = defaultdict(int)
 
         for level in range(24):
-            if level in self.levels:
-                img = self.levels[level][1]
+            if level in self.rooms:
+                img = self.rooms[level][1]
             else:
                 img = np.zeros((height, width, 3)) + 127
             y_room, x_room = room_pos(level)
