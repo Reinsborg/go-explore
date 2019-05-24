@@ -166,8 +166,8 @@ class MyMsPacman:
         if self.pos is not None:
             level = self.pos.level
             old_objects = self.pos.score
-            direction_x = clip(int((self.pos.x - x) / 5), -1, 1)
-            direction_y = clip(int((self.pos.y - y) / 5), -1, 1)
+            direction_x = clip(int((self.pos.x - x) / 10), -1, 1)
+            direction_y = clip(int((self.pos.y - y) / 10), -1, 1)
             if direction_x != 0 or direction_y != 0:
                 if y > 100 and y > 110 and x > 150 and x < 170:
                     level += 1
