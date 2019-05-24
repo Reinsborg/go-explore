@@ -106,7 +106,7 @@ def clip(a, m, M):
 
 class MyMsPacman:
     def __init__(self, check_death: bool = True, unprocessed_state: bool = False,
-                 x_repeat=2, objects_from_pixels=True, objects_remember_rooms=False, only_keys=False):  # TODO: version that also considers the room objects were found in
+                 x_repeat=2, ):  # TODO: version that also considers the room objects were found in
         self.env = FrameStack(WarpFrame(gym.make('MsPacmanNoFrameskip-v4')), 4)
         self.env.reset()
 

@@ -202,7 +202,9 @@ def _run(resolution=16, score_objects=True, mean_repeat=20,
 		game_class = MyMsPacman
 		game_class.TARGET_SHAPE = target_shape
 		game_class.MAX_PIX_VALUE = max_pix_value
-		game_args = dict(x_repeat=x_repeat)
+		game_args = dict(
+			score_objects=score_objects, x_repeat=x_repeat,
+			unprocessed_state=True)
 		grid_resolution = (
 			GridDimension('level', 1), GridDimension('score', 1),
 			GridDimension('x', resolution), GridDimension('y', resolution)
