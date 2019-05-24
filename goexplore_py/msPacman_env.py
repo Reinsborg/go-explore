@@ -38,7 +38,7 @@ class PacmanPosLevel:
         self.set_tuple()
 
     def set_tuple(self):
-        self.tuple = (self.level, self.score, self.x, self.y)
+        self.tuple = (self.level, self.score, self.room, self.x, self.y)
 
     def __hash__(self):
         return hash(self.tuple)
@@ -52,7 +52,7 @@ class PacmanPosLevel:
         return self.tuple
 
     def __setstate__(self, d):
-        self.level, self.score, self.x, self.y = d
+        self.level, self.score, self.room, self.x, self.y = d
         assert self.level == self.room, f'level and room inconsistency, l:{self.level} r:{self.room}'
         self.tuple = d
 
