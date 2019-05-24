@@ -9,7 +9,7 @@
 
 from .import_ai import *
 from baselines.common.atari_wrappers import *
-
+from diverseExplorer import MyEpisodicLifeEnv
 
 class PacmanPosLevel:
     __slots__ = ['level', 'score', 'room', 'x', 'y', 'tuple']
@@ -107,7 +107,7 @@ def clip(a, m, M):
 class MyMsPacman:
     def __init__(self, check_death: bool = True, unprocessed_state: bool = False,
                  x_repeat=2, ):  # TODO: version that also considers the room objects were found in
-        self.env = FrameStack(WarpFrame(gym.make('MsPacmanNoFrameskip-v4')), 4)
+        self.env = MyEpisodicLifeEnv(FrameStack(WarpFrame(gym.make('MsPacmanNoFrameskip-v4')), 4))
         self.env.reset()
 
         self.ram = None
@@ -117,6 +117,7 @@ class MyMsPacman:
         self.rooms = {}
         self.room_time = None
         self.room_threshold = 40
+        self.idle_on_new_level = 260
         self.unwrapped.seed(0)
         self.unprocessed_state = unprocessed_state
         self.state = []
@@ -131,6 +132,8 @@ class MyMsPacman:
 
     def reset(self) -> np.ndarray:
         observation= self.env.reset()
+        for _ in range(self.idle_on_new_level):
+            self.env.step(0)
         unprocessed_state = self.env.unwrapped._get_obs()
         self.cur_lives = 3
         self.state = [convert_state(unprocessed_state)]
@@ -264,7 +267,10 @@ class MyMsPacman:
         self.cur_score += reward
         self.pos = self.pos_from_unprocessed_state(face_pixels, unprocessed_state)
         if self.pos.level != self.room_time[0]:
+            for _ in range(self.idle_on_new_level):
+                self.env.step(0)
             self.room_time = (self.pos.level, 0)
+
         self.room_time = (self.pos.room, self.room_time[1] + 1)
         if (self.pos.level not in self.rooms or
                 (self.room_time[1] == self.room_threshold and
