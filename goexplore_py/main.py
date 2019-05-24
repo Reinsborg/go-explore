@@ -359,7 +359,7 @@ def _run(resolution=16, score_objects=True, mean_repeat=20,
 				entry.append(summary.Summary.Value(tag="Avg traj-len", simple_value=(expl.frames_compute/batch_size)/explore_steps))
 				if sess is not None:
 					bytes = sess.run(tf.contrib.memory_stats.MaxBytesInUse())
-				entry.append(summary.Summary.Value(tag="Memory Use", simple_value=bytes))
+					entry.append(summary.Summary.Value(tag="Memory Use", simple_value=bytes))
 
 				entry.extend(expl.summary)
 				summaryWriter.add_summary(summary=summary.Summary(value=entry), global_step=expl.frames_compute + old_compute)
