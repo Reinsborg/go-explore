@@ -379,7 +379,8 @@ def _run(resolution=16, score_objects=True, mean_repeat=20,
 					filename = f'{base_path}/{expl.frames_true:0{n_digits}}_{expl.frames_compute:0{n_digits}}'
 
 					tqdm.write(f'Cells at levels: {dict(Counter(e.level for e in expl.real_grid))}')
-					tqdm.write(f'Cells at objects: {dict(Counter(e.score for e in expl.real_grid))}')
+					if game != 'pacman':
+						tqdm.write(f'Cells at objects: {dict(Counter(e.score for e in expl.real_grid))}')
 					tqdm.write(f'Max score: {max(e.score for e in expl.grid.values())}')
 					tqdm.write(f'Compute cells: {len(expl.grid)}')
 
