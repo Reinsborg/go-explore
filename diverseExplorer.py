@@ -25,6 +25,31 @@ class strechedObSpaceWrapper(gym.ObservationWrapper):
 		res[observation] = 1
 		return res
 
+class MyEpisodicLifeEnv(gym.Wrapper):
+	def __init__(self, env):
+		"""Make end-of-life == end-of-episode, and reset as normal
+		"""
+		gym.Wrapper.__init__(self, env)
+		self.lives = 0
+		self.was_real_done  = True
+
+	def step(self, action):
+		obs, reward, done, info = self.env.step(action)
+		self.was_real_done = done
+		# check current lives, make loss of life terminal,
+		# then update lives to handle bonus lives
+		lives = self.env.unwrapped.ale.lives()
+		if lives < self.lives and lives > 0:
+			# for Qbert sometimes we stay in lives == 0 condtion for a few frames
+			# so its important to keep lives > 0, so that we only reset once
+			# the environment advertises done.
+			done = True
+		self.lives = lives
+		return obs, reward, done, info
+
+	def reset(self, **kwargs):
+		return  self.env.reset(**kwargs)
+
 class PPOExplorer:
 	def __init__(self, env,  nexp, lr, lr_decay=1, cl_decay=1, nminibatches=4, n_tr_epochs=4, cliprange=0.1, gamma=0.99, lam=0.95, nenvs=1, policy=policies.CnnPolicy):
 		ob_space = env.observation_space

@@ -15,6 +15,7 @@ from goexplore_py.goexplore import *
 from goexplore_py.montezuma_env import MyMontezuma
 import goexplore_py.pitfall_env as pitfall_env
 from goexplore_py.nchain_env import MyNChain
+from goexplore_py.msPacman_env import MyMsPacman
 import cProfile
 from goexplore_py.policies import *
 from tensorflow import summary, ConfigProto, Session, name_scope
@@ -37,10 +38,10 @@ PROFILER = None
 
 LOG_DIR = None
 
-TEST_OVERRIDE = False
+TEST_OVERRIDE = True
 SAVE_MODEL = False
-test_dict = {'log_path': ["log/test/domain/clipreward"], 'base_path':['./results/test/domain/clipreward'],
-			 'explorer':['mlsh'], 'game':['montezuma'], 'actors':[1],
+test_dict = {'log_path': ["log/debug"], 'base_path':['./results/debug'],
+			 'explorer':['mlsh'], 'game':['pacman'], 'actors':[1],
 			 'nexp':[128], 'batch_size':[100], 'resolution': [16],
 			 'explore_steps':[100],
 		'lr': [1.0e-03], 'lr_decay':[ 1],
@@ -197,30 +198,52 @@ def _run(resolution=16, score_objects=True, mean_repeat=20,
 		game_class.MAX_PIX_VALUE = max_pix_value
 		game_args = dict(N=10000)
 		grid_resolution = (GridDimension('state', 1),)
+	elif game == "pacman":
+		game_class = MyMsPacman
+		game_class.TARGET_SHAPE = target_shape
+		game_class.MAX_PIX_VALUE = max_pix_value
+		game_args = dict(x_repeat=x_repeat)
+		grid_resolution = (
+			GridDimension('level', 1), GridDimension('score', 1),
+			GridDimension('x', resolution), GridDimension('y', resolution)
+		)
 	else:
 		raise NotImplementedError("Unknown game: " + game)
 
 
-	if game != "nchain":
-		selector = WeightedSelector(game_class,
-									seen=Weight(seen_weight, seen_power),
-									chosen=Weight(chosen_weight, chosen_power),
-									action=Weight(action_weight, action_power),
-									room_cells=Weight(0.0),
-									dir_weights=DirWeights(horiz_weight, vert_weight, low_score_weight, high_score_weight),
-									chosen_since_new_weight=Weight(chosen_since_new_weight, chosen_since_new_power),
-									low_level_weight=low_level_weight
-									)
-	else:
+	if game == "nchain":
 		selector = NChainSelector(game_class,
 								  seen=Weight(seen_weight, seen_power),
 								  chosen=Weight(chosen_weight, chosen_power),
 								  action=Weight(action_weight, action_power),
 								  room_cells=Weight(0.0),
-								  dir_weights=DirWeights(horiz_weight, vert_weight, low_score_weight, high_score_weight),
+								  dir_weights=DirWeights(horiz_weight, vert_weight, low_score_weight,
+														 high_score_weight),
 								  chosen_since_new_weight=Weight(chosen_since_new_weight, chosen_since_new_power),
 								  low_level_weight=low_level_weight, with_domain=use_real_pos
 								  )
+	elif game == "pacman":
+		selector = PacmanSelector(game_class,
+									seen=Weight(seen_weight, seen_power),
+									chosen=Weight(chosen_weight, chosen_power),
+									action=Weight(action_weight, action_power),
+									room_cells=Weight(0.0),
+									dir_weights=DirWeights(horiz_weight, vert_weight, low_score_weight,
+														   high_score_weight),
+									chosen_since_new_weight=Weight(chosen_since_new_weight, chosen_since_new_power),
+									low_level_weight=low_level_weight
+									)
+	else:
+		selector = WeightedSelector(game_class,
+									seen=Weight(seen_weight, seen_power),
+									chosen=Weight(chosen_weight, chosen_power),
+									action=Weight(action_weight, action_power),
+									room_cells=Weight(0.0),
+									dir_weights=DirWeights(horiz_weight, vert_weight, low_score_weight,
+														   high_score_weight),
+									chosen_since_new_weight=Weight(chosen_since_new_weight, chosen_since_new_power),
+									low_level_weight=low_level_weight
+									)
 
 
 	pool_cls = multiprocessing.get_context(start_method).Pool
