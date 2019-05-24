@@ -320,7 +320,9 @@ def _run(resolution=16, score_objects=True, mean_repeat=20,
 		logDir = f'{logDir}_{time.time()}'
 		global LOG_DIR
 		LOG_DIR= logDir
-		summaryWriter = summary.FileWriter(logdir=logDir, flush_secs=20, graph=sess.graph)
+		summaryWriter = summary.FileWriter(logdir=logDir, flush_secs=20)
+		if sess is not None:
+			summaryWriter.add_graph(graph=sess.graph)
 		keys_found = []
 		try:
 			while should_continue():
