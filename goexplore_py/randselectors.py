@@ -349,30 +349,10 @@ class PacmanSelector:
         return res
 
     def get_pos_weight(self, pos, cell, known_cells, possible_scores):
-        if isinstance(pos, tuple):
-            # Logic for the score stuff: the highest score will get a weight of 1, second highest a weight of sqrt(1/2), third sqrt(1/3) etc.
-            return 1 + self.dir_weights.score_high * 1 / np.sqrt(len(possible_scores) - possible_scores.index(cell.score))
-        no_low = True
-        if convert_score(pos.score) == convert_score(possible_scores[0]):
-            pass
-        else:
-            for score in possible_scores:
-                if convert_score(score) >= convert_score(pos.score):
-                    break
-                if self.game.make_pos(score, pos) in known_cells:
-                    no_low = False
-                    break
 
-        no_high = True
-        if convert_score(pos.score) == convert_score(possible_scores[-1]):
-            pass
-        else:
-            for score in reversed(possible_scores):
-                if convert_score(score) <= convert_score(pos.score):
-                    break
-                if self.game.make_pos(score, pos) in known_cells:
-                    no_high = False
-                    break
+            # Logic for the score stuff: the highest score will get a weight of 1, second highest a weight of sqrt(1/2), third sqrt(1/3) etc.
+        score_weight =  self.dir_weights.score_high * 1 / np.sqrt(len(possible_scores) - possible_scores.index(cell.score))
+
 
         neigh_horiz = 0.0
         if self.dir_weights.horiz:
@@ -382,7 +362,7 @@ class PacmanSelector:
                            + self.no_neighbor(pos, (1, -1), known_cells) + self.no_neighbor(pos, (-1, 1), known_cells))
 
 
-        res = self.dir_weights.horiz * neigh_horiz + self.dir_weights.score_low * no_low + self.dir_weights.score_high * no_high + 1
+        res = self.dir_weights.horiz * neigh_horiz + score_weight + 1
         return res
 
     def get_weight(self, cell_key, cell, possible_scores, known_cells):
