@@ -14,13 +14,18 @@ from baselines.common.atari_wrappers import *
 class PacmanPosLevel:
     __slots__ = ['level', 'score', 'room', 'x', 'y', 'tuple']
 
-    def __init__(self, level, score, room, x, y):
+    def __init__(self, level, score, *arg):
         self.level = level
         self.score = score
-        self.room = room
-        self.x = x
-        self.y = y
-        assert  self.level == self.room, f'level and room inconsistency, l:{level} r:{room}'
+        if len(arg) == 3:
+            self.room = arg[0]
+            self.x = arg[1]
+            self.y = arg[2]
+        else:
+            self.x = arg[0]
+            self.y = arg[1]
+            self.room = level
+        assert  self.level == self.room, f'level and room inconsistency, l:{self.level} r:{self.room}'
         self.set_tuple()
 
     def set_tuple(self):
