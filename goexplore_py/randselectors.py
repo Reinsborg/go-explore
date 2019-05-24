@@ -367,7 +367,7 @@ class PacmanSelector:
 
     def get_weight(self, cell_key, cell, possible_scores, known_cells):
         level_weight = 1.0
-        if not isinstance(cell_key, tuple) and cell_key.level < self.max_level:
+        if cell_key.level < self.max_level:
             level_weight = self.low_level_weight ** (self.max_level - cell_key.level)
         if level_weight == 0.0:
             return 0.0

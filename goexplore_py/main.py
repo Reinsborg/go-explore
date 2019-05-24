@@ -59,7 +59,8 @@ test_dict = {'log_path': ["log/debug"], 'base_path':['./results/debug'],
 		'train': [  40],
 			 'with_domain': [True],
 			 'ent_mas':[0.01],
-			 'ent_sub':[0.01]
+			 'ent_sub':[0.01],
+
 			}
 TERM_CONDITION = True
 NSAMPLES = 4
@@ -206,7 +207,7 @@ def _run(resolution=16, score_objects=True, mean_repeat=20,
 			x_repeat=x_repeat,
 			unprocessed_state=True)
 		grid_resolution = (
-			GridDimension('level', 1), GridDimension('score', 1),
+			GridDimension('level', 1),
 			GridDimension('x', resolution), GridDimension('y', resolution)
 		)
 	else:
@@ -348,10 +349,11 @@ def _run(resolution=16, score_objects=True, mean_repeat=20,
 						if key not in keys_found:
 							keys_found.append(key)
 					hist = makeHistProto(dist, bins=30, keys=keys_found)
-					leveldist = Counter(e.level for e in expl.real_grid)
-					histlvl = makeHistProto(leveldist, bins=5)
 					entry.append(summary.Summary.Value(tag="Key_dist", histo=hist))
-					entry.append(summary.Summary.Value(tag="Level_dist", histo=histlvl))
+
+				leveldist = Counter(e.level for e in expl.real_grid)
+				histlvl = makeHistProto(leveldist, bins=5)
+				entry.append(summary.Summary.Value(tag="Level_dist", histo=histlvl))
 				entry.append(summary.Summary.Value(tag="Avg traj-len", simple_value=(expl.frames_compute/batch_size)/explore_steps))
 				bytes = sess.run(tf.contrib.memory_stats.MaxBytesInUse())
 				entry.append(summary.Summary.Value(tag="Memory Use", simple_value=bytes))

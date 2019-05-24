@@ -12,33 +12,19 @@ from baselines.common.atari_wrappers import *
 from diverseExplorer import MyEpisodicLifeEnv
 
 class PacmanPosLevel:
-    __slots__ = ['level', 'score', 'room', 'x', 'y', 'tuple']
+    __slots__ = ['level',  'x', 'y', 'tuple']
 
-    def __init__(self, level, score, *arg, **kwargs):
+    def __init__(self, level, x, y):
         self.level = level
-        self.score = score
-        if len(kwargs.keys()) == 3:
-            self.room = kwargs['room']
-            self.x = kwargs['x']
-            self.y = kwargs['y']
-        if len(kwargs.keys()) == 2:
-            self.room = self.level
-            self.x = kwargs['x']
-            self.y = kwargs['y']
-        if len(arg) == 3:
-            self.room = arg[0]
-            self.x = arg[1]
-            self.y = arg[2]
-        elif len(arg) == 2:
-            self.x = arg[0]
-            self.y = arg[1]
-            self.room = level
 
-        assert  self.level == self.room, f'level and room inconsistency, l:{self.level} r:{self.room}'
+        self.x = x
+        self.y = y
+
+
         self.set_tuple()
 
     def set_tuple(self):
-        self.tuple = (self.level, self.score, self.room, self.x, self.y)
+        self.tuple = (self.level, self.x, self.y)
 
     def __hash__(self):
         return hash(self.tuple)
@@ -52,12 +38,11 @@ class PacmanPosLevel:
         return self.tuple
 
     def __setstate__(self, d):
-        self.level, self.score, self.room, self.x, self.y = d
-        assert self.level == self.room, f'level and room inconsistency, l:{self.level} r:{self.room}'
+        self.level, self.x, self.y = d
         self.tuple = d
 
     def __repr__(self):
-        return f'Level={self.level} Objects={self.score} x={self.x} y={self.y}'
+        return f'Level={self.level} x={self.x} y={self.y}'
 
 
 def convert_state(state):
@@ -174,7 +159,7 @@ class MyMsPacman:
 
         score = self.cur_score
 
-        return PacmanPosLevel(level, score, level, x, y)
+        return PacmanPosLevel(level, x, y)
 
 
 
@@ -388,4 +373,4 @@ class MyMsPacman:
 
     @staticmethod
     def make_pos(score, pos):
-        return PacmanPosLevel(pos.level, score, pos.level, pos.x, pos.y)
+        return PacmanPosLevel(pos.level, pos.x, pos.y)
