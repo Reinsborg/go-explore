@@ -107,7 +107,7 @@ def clip(a, m, M):
 class MyMsPacman:
     def __init__(self, check_death: bool = True, unprocessed_state: bool = False,
                  x_repeat=2, ):  # TODO: version that also considers the room objects were found in
-        self.env = MyEpisodicLifeEnv(FrameStack(WarpFrame(gym.make('MsPacmanNoFrameskip-v4')), 4))
+        self.env = FrameStack(WarpFrame(MyEpisodicLifeEnv(gym.make('MsPacmanNoFrameskip-v4')), 4))
         self.env.reset()
 
         self.ram = None
