@@ -12,12 +12,12 @@ from baselines.common.atari_wrappers import *
 from diverseExplorer import MyEpisodicLifeEnv
 
 class PacmanPosLevel:
-    __slots__ = ['level', 'score' 'room', 'x', 'y', 'tuple']
+    __slots__ = ['level', 'score', 'room', 'x', 'y', 'tuple']
 
     def __init__(self, level, x, y):
         self.level = level
-        self.room = level
         self.score = None
+        self.room = level
         self.x = x
         self.y = y
 
