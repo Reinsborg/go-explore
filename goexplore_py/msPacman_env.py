@@ -17,9 +17,14 @@ class PacmanPosLevel:
     def __init__(self, level, score, *arg, **kwargs):
         self.level = level
         self.score = score
-
-        self.x = kwargs['x']
-        self.y = kwargs['y']
+        if len(kwargs.keys()) == 3:
+            self.room = kwargs['room']
+            self.x = kwargs['x']
+            self.y = kwargs['y']
+        if len(kwargs.keys()) == 2:
+            self.room = self.level
+            self.x = kwargs['x']
+            self.y = kwargs['y']
         if len(arg) == 3:
             self.room = arg[0]
             self.x = arg[1]
@@ -29,7 +34,6 @@ class PacmanPosLevel:
             self.y = arg[1]
             self.room = level
 
-        self.room = self.level
         assert  self.level == self.room, f'level and room inconsistency, l:{self.level} r:{self.room}'
         self.set_tuple()
 
