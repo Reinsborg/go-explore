@@ -319,7 +319,7 @@ def _run(resolution=16, score_objects=True, mean_repeat=20,
 		logDir = f'{logDir}_{time.time()}'
 		global LOG_DIR
 		LOG_DIR= logDir
-		summaryWriter = summary.FileWriter(logdir=logDir, flush_secs=120, graph=sess.graph)
+		summaryWriter = summary.FileWriter(logdir=logDir, flush_secs=20, graph=sess.graph)
 		keys_found = []
 		try:
 			while should_continue():
@@ -342,7 +342,7 @@ def _run(resolution=16, score_objects=True, mean_repeat=20,
 				entry = [summary.Summary.Value(tag='Rooms_Found', simple_value=len(Counter( (e.room, e.level) for e in expl.grid).keys()))]
 				entry.append(summary.Summary.Value(tag='Cells', simple_value=len(expl.grid)))
 				entry.append(summary.Summary.Value(tag='Top_score', simple_value=max(e.score for e in expl.grid.values())))
-				if game != "nchain":
+				if game == "montezuma":
 					dist = Counter(e.score for e in expl.real_grid)
 					for key in dist.keys():
 						if key not in keys_found:
