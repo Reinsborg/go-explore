@@ -977,3 +977,382 @@ class DQNExplorer:
 #         x = self.conv2(x)
 #         x = self.dense(x)
 #         return self.output(x)
+
+class MlshExplorer_v2:
+	def __init__(self, nsubs, timedialation, warmup_T, train_T,  actors, nexp, lr_mas, lr_sub, retrain_N = None,
+				 lr_decay=1., cl_decay=1., lr_decay_sub=1., cl_decay_sub=1., nminibatches=4, n_tr_epochs=4,
+				 cliprange_mas=0.1, cliprange_sub = 0.1, gamma=0.99, lam=0.95, ent_m=0.01, ent_s=0.01):
+
+
+
+
+
+		# PPO related
+		self.nacts = actors
+		self.actor = 0
+		self.exp = 0
+		self.nsteps = nexp
+		self.batch = self.nsteps * actors
+		self.n_mb = nminibatches
+		self.nbatch_train = self.batch // self.n_mb
+		self.mb_obs_m, self.mb_rewards_m, self.mb_actions_m, self.mb_values_m, self.mb_dones_m, self.mb_neglogpacs_m, \
+		self.mb_domains_m = [[]], [[]], [[]], [[]], [[]], [[]], [[]]
+		self.mb_obs, self.mb_rewards, self.mb_actions, self.mb_values, self.mb_dones, self.mb_neglogpacs = [[]], [[]], [[]], [[]], [[]], [[]]
+		self.lr = lr_mas
+		self.lr_decay = lr_decay
+		self.cl_decay = cl_decay
+		self.master_lr = lr_mas
+		self.master_cl = cliprange_mas
+		self.states = None
+		self.done_m = [False for _ in range(1)]
+		self.done = [False for _ in range(1)]
+		self.gamma = gamma
+		self.lam = lam
+		self.ent = ent_m
+		self.n_train_epoch = n_tr_epochs
+		self.cliprange = cliprange_mas
+
+		# MLSH
+		self.master = None
+		self.subs = None
+		self.nsubs = nsubs
+		self.time_dialation = timedialation
+		self.warm_up_T = warmup_T
+		self.warm_up_done = False
+		self.train_t = train_T
+		self.retrain_N = retrain_N
+		self.cur_sub = None
+		self.t = 0
+		self.reward_m = 0
+		self.reward = 0
+		self.reset_count = 0
+
+
+		self.obs = None
+		self.domain = []
+		self.env = None
+
+	def init_model(self, env, domain_shape=None, masterPolicy=policies.CnnPolicy, subPolicies=policies.CnnPolicy):
+		# self.env = gym.make(env)
+		# if self.env.__repr__() != '<TimeLimit<NChainEnv<NChain-v0>>>':
+		# 	self.env = ClipRewardEnv(FrameStack(WarpFrame(self.env), 4))
+		# else:
+		# 	self.env = self.env.unwrapped
+		# 	self.env.unwrapped.n = 10000  #if nchain environment set N to 10 000
+		# 	self.env = strechedObSpaceWrapper(self.env)
+		# 	#TODO Should not be hardcoded
+		# 	self.env.unwrapped.slip = 0
+
+		ob_space = env.observation_space
+		ac_space = gym.spaces.Discrete(len(self.subs))
+		if  masterPolicy == policies.CnnPolicy_withDomain: #isinstance(masterPolicy., policies.CnnPolicy_withDomain):
+			assert domain_shape is not None, Exception('domain policy but no domain shape suplied')
+			self.master = ppo2.Model(policy=masterPolicy, ob_space=ob_space, ac_space=ac_space, nbatch_act=1,
+									 nbatch_train=self.nbatch_train, nsteps=self.nsteps, ent_coef=self.ent, vf_coef=1,
+									 max_grad_norm=0.5, name='Master', domain_shape=domain_shape)
+			self.domain = np.zeros((1,) + domain_shape, dtype=self.master.train_model.G.dtype.name)
+		else:
+			self.master = ppo2.Model(policy=masterPolicy, ob_space=ob_space, ac_space=ac_space, nbatch_act=1,
+								nbatch_train=self.nbatch_train, nsteps=self.nsteps, ent_coef=self.ent, vf_coef=1,
+								max_grad_norm=0.5, name='Master')
+
+		self.subs = [ppo2.Model(policy=subPolicies, ob_space=ob_space, ac_space=env.action_space, nbatch_act=1,
+								nbatch_train=self.time_dialation, nsteps=self.nsteps, ent_coef=0.01, vf_coef=1,
+								max_grad_norm=0.5, name=f'Sub_{i}') for i in range(self.nsubs)]
+		self.obs = np.zeros((1,) + ob_space.shape, dtype=self.master.train_model.X.dtype.name)
+
+
+	def init_seed(self):
+		# self.exp = 0
+		# self.mb_obs, self.mb_rewards, self.mb_actions, self.mb_values, self.mb_dones, self.mb_neglogpacs = [],[],[],[],[],[]
+		pass
+
+	def init_trajectory(self, obs, domain):
+
+		# if start_cell.restore is not None:
+		# 	if self.env.unwrapped.spec._env_name != "NChain":
+		# 		(full_state, state, score, steps, pos, room_time, ram_death_state,_, _) = start_cell.restore
+		# 		self.env.unwrapped.restore_full_state(full_state)
+		# 		for i in range(3): #TODO this puts the env out of sync
+		# 			self.env.step(0) #perform 3(4) nop to fill FrameStack
+		# 	else:
+		# 		state, _, _, _ = start_cell.restore
+		# 		self.env.unwrapped.state = state
+		# 	self.obs[:], _ , self.done, _ = self.env.step(0)
+		# else:
+		# 	self.obs[:] = self.env.reset()
+		# 	self.done = [False]
+		self.obs[:] = obs
+		self.domain[:] = domain
+		self.done_m = True # Delayed done flag to seperate from the previous episode which may not have ended in death
+		if self.t % self.time_dialation:
+			self.t += (self.time_dialation - (self.t % self.time_dialation)) # fast-forward to next master time step
+			#save partial exp
+			self.mb_rewards_m[self.actor].append(self.reward_m)
+			self.reward_m = 0
+			self.exp += 1
+
+			# if this complete a batch train before continuing
+			if self.exp >= self.nsteps:
+				self.actor += 1
+				self.exp = 0
+
+				if self.actor != self.nacts:
+					self.mb_obs_m.append([])
+					self.mb_actions_m.append([])
+					self.mb_values_m.append([])
+					self.mb_neglogpacs_m.append([])
+					self.mb_dones_m.append([])
+					self.mb_rewards_m.append([])
+					self.mb_domains_m.append([])
+				else:
+					self.actor = 0
+					self.train()
+
+
+
+	def seen_state(self, e):
+
+
+		self.t += 1
+		#self.obs[:], reward, self.done, _ = self.env.step(self.mb_actions[self.actor][-1].squeeze())
+
+		self.obs[:] = e['observation']
+		self.domain[:] = e['domain']
+		self.done_m += e['done']
+		self.done = e['done']
+		self.reward_m += e['reward']
+		self.reward = e['reward']
+
+		if self.t % self.time_dialation == 0:
+			if not self.warm_up_done and self.t >= self.warm_up_T:
+				self.warm_up_done = True
+				self.t = 0
+			self.mb_rewards_m[self.actor].append(self.reward_m)
+			self.reward_m = 0
+			self.exp += 1
+
+		if self.warm_up_done:
+
+			if self.t >= self.train_t:
+
+				if self.retrain_N is not None and self.reset_count >= self.retrain_N:
+					self.t = 0 # assuming subPolicies have convergede enough that no further resets are needed
+				else:
+					self.reset_master()
+					self.warm_up_done = False # reset master policy and reenter warmup period
+
+
+		if self.exp >= self.nsteps:
+			self.actor += 1
+			self.exp = 0
+
+
+
+			if self.actor != self.nacts:
+				self.mb_obs_m.append([])
+				self.mb_actions_m.append([])
+				self.mb_values_m.append([])
+				self.mb_neglogpacs_m.append([])
+				self.mb_dones_m.append([])
+				self.mb_rewards_m.append([])
+				self.mb_domains_m.append([])
+			else:
+				self.actor = 0
+				self.train_subs()
+				self.train()
+
+	def train_subs(self):
+		self.mb_obs = np.asarray(self.mb_obs, dtype=self.obs.dtype).squeeze()
+		self.mb_rewards = np.asarray(self.mb_rewards, dtype=np.float32).squeeze()
+		self.mb_actions = np.asarray(self.mb_actions).squeeze()
+		self.mb_values = np.asarray(self.mb_values, dtype=np.float32).squeeze()
+		self.mb_neglogpacs = np.asarray(self.mb_neglogpacs, dtype=np.float32).squeeze()
+		self.mb_dones = np.asarray(self.mb_dones, dtype=np.bool).squeeze()
+
+		if self.nacts > 1:
+			self.mb_obs = self.mb_obs.swapaxes(0, 1)
+			self.mb_rewards = self.mb_rewards.swapaxes(0, 1)
+			self.mb_actions = self.mb_actions.swapaxes(0, 1)
+			self.mb_values = self.mb_values.swapaxes(0, 1)
+			self.mb_neglogpacs = self.mb_neglogpacs.swapaxes(0, 1)
+			self.mb_dones = self.mb_dones.swapaxes(0, 1)
+
+		last_values = self.subs[self.cur_sub].value(self.obs)
+
+		mb_returns = np.zeros_like(self.mb_rewards)
+		mb_advs = np.zeros_like(self.mb_rewards)
+		lastgaelam = 0
+		for t in reversed(range(self.nsteps)):
+			if t == self.nsteps - 1:
+				nextnonterminal = 1.0 - self.done
+				nextvalues = last_values
+			else:
+				nextnonterminal = 1.0 - self.mb_dones[t + 1]
+				nextvalues = self.mb_values[t + 1]
+			delta = self.mb_rewards[t] + self.gamma * nextvalues * nextnonterminal - self.mb_values[t]
+			mb_advs[t] = lastgaelam = delta + self.gamma * self.lam * nextnonterminal * lastgaelam
+
+		mb_returns[:] = mb_advs + self.mb_values
+
+		if self.nacts > 1:
+			self.mb_obs, mb_returns, self.mb_dones, self.mb_actions, self.mb_values, self.mb_neglogpacs= \
+				map(ppo2.sf01, (self.mb_obs, mb_returns, self.mb_dones, self.mb_actions, self.mb_values, self.mb_neglogpacs))
+			master_actions = iter(ppo2.sf01(self.mb_actions_m))
+		else:
+			master_actions = iter(self.mb_actions_m)
+
+		subobs = [np.ndarray() for _ in self.subs]
+		subret = [np.ndarray() for _ in self.subs]
+		subdon = [np.ndarray() for _ in self.subs]
+		subact = [np.ndarray() for _ in self.subs]
+		subval = [np.ndarray() for _ in self.subs]
+		subneg = [np.ndarray() for _ in self.subs]
+
+		t = 0
+		sub = next(master_actions)
+		for i,_ in enumerate(mb_returns):
+			if self.mb_dones or t == self.time_dialation:
+				t = 0
+				sub = next(master_actions)
+			subobs[sub].append(self.mb_obs[i])
+			subret[sub].append(mb_returns[i])
+			subdon[sub].append(self.mb_dones[i])
+			subact[sub].append(self.mb_actions[i])
+			subval[sub].append(self.mb_values[i])
+			subneg[sub].append(self.mb_neglogpacs[i])
+
+			t += 1
+		for i in range(self.nsubs):
+			inds = np.arange(len(subret[i]))
+			for _ in range(self.n_train_epoch):
+				np.random.shuffle(inds)
+				for start in range(0, len(subret[i]), self.time_dialation):
+					end = start + self.time_dialation
+					if end > len(subret[i]):
+						continue
+					mbinds = inds[start:end]
+					slices = (arr[mbinds] for arr in (
+						subobs[i], subret[i], subdon[i], subact[i], subact[i],
+						subneg[i]))
+					slices = dict(
+						zip(['obs', 'returns', 'masks', 'actions', 'values', 'neglogpacs'], slices))
+					self.subs[i].train(self.lr, self.cliprange, **slices)
+
+
+
+
+
+	def train(self):
+		self.mb_obs_m = np.asarray(self.mb_obs_m, dtype=self.obs.dtype).squeeze()
+		self.mb_rewards_m = np.asarray(self.mb_rewards_m, dtype=np.float32).squeeze()
+		self.mb_actions_m = np.asarray(self.mb_actions_m).squeeze()
+		self.mb_values_m = np.asarray(self.mb_values_m, dtype=np.float32).squeeze()
+		self.mb_neglogpacs_m = np.asarray(self.mb_neglogpacs_m, dtype=np.float32).squeeze()
+		self.mb_dones_m = np.asarray(self.mb_dones_m, dtype=np.bool).squeeze()
+		if isinstance(self.master.train_model, policies.CnnPolicy_withDomain):
+			self.mb_domains_m = np.asarray(self.mb_domains_m, dtype=self.domain.dtype).squeeze(axis=(0, 2))
+		else:
+			self.mb_domains_m = np.asarray(self.mb_domains_m).squeeze(axis=0)
+
+		if self.nacts > 1:
+			self.mb_obs_m = self.mb_obs_m.swapaxes(0, 1)
+			self.mb_rewards_m = self.mb_rewards_m.swapaxes(0, 1)
+			self.mb_actions_m = self.mb_actions_m.swapaxes(0, 1)
+			self.mb_values_m = self.mb_values_m.swapaxes(0, 1)
+			self.mb_neglogpacs_m = self.mb_neglogpacs_m.swapaxes(0, 1)
+			self.mb_dones_m = self.mb_dones_m.swapaxes(0, 1)
+			if isinstance(self.master.train_model, policies.CnnPolicy_withDomain):
+				self.mb_domains_m = self.mb_domains_m.swapaxes(0, 1)
+
+		# From baselines' ppo2 runner():
+		# Calculate returns
+
+		last_values = self.master.value(self.obs, self.domain)
+
+		mb_returns = np.zeros_like(self.mb_rewards_m)
+		mb_advs = np.zeros_like(self.mb_rewards_m)
+		lastgaelam = 0
+		for t in reversed(range(self.nsteps)):
+			if t == self.nsteps - 1:
+				nextnonterminal = 1.0 - self.done_m
+				nextvalues = last_values
+			else:
+				nextnonterminal = 1.0 - self.mb_dones_m[t + 1]
+				nextvalues = self.mb_values_m[t + 1]
+			delta = self.mb_rewards_m[t] + self.gamma * nextvalues * nextnonterminal - self.mb_values_m[t]
+			mb_advs[t] = lastgaelam = delta + self.gamma * self.lam * nextnonterminal * lastgaelam
+
+		mb_returns[:] = mb_advs + self.mb_values_m
+		# Swap and flatten axis 0 and 1
+		if self.nacts > 1:
+			self.mb_obs_m, mb_returns, self.mb_dones_m, self.mb_actions_m, self.mb_values_m, self.mb_neglogpacs_m, self.mb_domains_m = \
+				map(ppo2.sf01, (self.mb_obs_m, mb_returns, self.mb_dones_m, self.mb_actions_m, self.mb_values_m, self.mb_neglogpacs_m, self.mb_domains_m))
+
+
+		#train model for multiple epoch in n minibacthes pr epoch
+		#From baselines' ppo2 learn()
+		inds = np.arange(self.batch)
+		for _ in range(self.n_train_epoch):
+			np.random.shuffle(inds)
+			for start in range(0, self.batch, self.nbatch_train):
+				end = start + self.nbatch_train
+				mbinds = inds[start:end]
+				slices = (arr[mbinds] for arr in (self.mb_obs_m, mb_returns, self.mb_dones_m, self.mb_actions_m, self.mb_values_m, self.mb_neglogpacs_m, self.mb_domains_m))
+				slices = dict(zip(['obs', 'returns', 'masks', 'actions', 'values', 'neglogpacs', 'domains'], slices))
+				if not isinstance(self.master.train_model, policies.CnnPolicy_withDomain):
+					slices['domains'] = None
+				self.master.train(self.lr, self.cliprange, **slices)
+
+
+
+
+
+		self.lr *= self.lr_decay
+		self.cliprange *=  self.cl_decay
+
+		self.mb_obs_m, self.mb_rewards_m, self.mb_actions_m, self.mb_values_m, self.mb_dones_m, self.mb_neglogpacs_m, \
+		self.mb_domains_m = [[]], [[]], [[]], [[]], [[]], [[]], [[]]
+
+	def get_action(self, state, env):
+
+		#self.obs[:] = env.obs
+
+		if self.t % self.time_dialation == 0:
+			self.cur_sub, master_values, _, master_neglogpacs = self.master.step(self.obs, self.domain)
+			self.cur_sub = self.cur_sub.squeeze()
+
+
+			self.mb_obs_m[self.actor].append(self.obs.copy())
+			self.mb_domains_m[self.actor].append((self.domain.copy()))
+			self.mb_actions_m[self.actor].append(self.cur_sub)
+			self.mb_values_m[self.actor].append(master_values)
+			self.mb_neglogpacs_m[self.actor].append(master_neglogpacs)
+			self.mb_dones_m[self.actor].append(self.done_m)
+
+		actions, values, _, neglogpacs = self.subs[self.cur_sub].step(self.obs)
+
+		if self.warm_up_done:
+			self.mb_obs[self.actor].append(self.obs.copy())
+			self.mb_actions[self.actor].append(actions)
+			self.mb_values[self.actor].append(values)
+			self.mb_neglogpacs[self.actor].append(neglogpacs)
+			self.mb_dones[self.actor].append(self.done_m)
+
+		return actions
+
+	def reset_master(self):
+		self.mb_obs_m, self.mb_rewards_m, self.mb_actions_m, self.mb_values_m, self.mb_dones_m, self.mb_neglogpacs_m = [[]], [[]], [[]], [[]], [[]], [[]]
+		self.exp = 0
+		self.t = 0
+		self.actor = 0
+		self.cliprange = self.master_cl
+		self.lr = self.master_lr
+		self.master.reset()
+
+
+
+	def __repr__(self):
+		return 'mlsh'
+
+

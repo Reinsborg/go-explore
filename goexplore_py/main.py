@@ -46,7 +46,7 @@ test_dict = {'log_path': ["log/test/pacman/clip/domain"], 'base_path':['./result
 			 'explore_steps':[100],
 		'lr': [1.0e-03], 'lr_decay':[ 1],
 		'cliprange':[0.1], 'cl_decay': [ 1],
-		'n_tr_epochs':[2],
+		'n_tr_epochs':[4],
 		'mbatch': [4],
 		'gamma':[0.999], 'lam':[0.95],
 		'nsubs' : [4],
