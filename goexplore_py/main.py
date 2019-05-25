@@ -40,7 +40,7 @@ LOG_DIR = None
 
 TEST_OVERRIDE = True
 SAVE_MODEL = False
-test_dict = {'log_path': ["log/test/pacman/clip/domain"], 'base_path':['./results/debug/pacman'],
+test_dict = {'log_path': ["log/test/pacman/clip/nodomain"], 'base_path':['./results/debug/pacman'],
 			 'explorer':['mlsh'], 'game':['pacman'], 'actors':[1],
 			 'nexp':[1024], 'batch_size':[100], 'resolution': [16],
 			 'explore_steps':[100],

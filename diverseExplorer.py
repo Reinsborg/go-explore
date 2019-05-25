@@ -1256,12 +1256,12 @@ class MlshExplorer_v2:
 		subdon = [np.asarray(don, dtype=np.bool).squeeze() for don in subdon]
 
 		for i in range(self.nsubs):
-			inds = np.arange(len(subret[i]))
+			inds = np.arange(subret[i].size)
 			for _ in range(self.n_train_epoch):
 				np.random.shuffle(inds)
-				for start in range(0, len(subret[i]), self.time_dialation):
+				for start in range(0, subret[i].size, self.time_dialation):
 					end = start + self.time_dialation
-					if end > len(subret[i]):
+					if end > subret[i].size:
 						continue
 					mbinds = inds[start:end]
 					slices = (arr[mbinds] for arr in (
