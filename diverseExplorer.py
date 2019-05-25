@@ -1185,7 +1185,7 @@ class MlshExplorer_v2:
 		mb_advs = np.zeros_like(self.mb_rewards)
 		lastgaelam = 0
 		for t in reversed(range(len(self.mb_rewards))):
-			if t == self.nsteps - 1:
+			if t == len(self.mb_rewards) - 1:
 				nextnonterminal = 1.0 - self.done
 				nextvalues = last_values
 			else:
