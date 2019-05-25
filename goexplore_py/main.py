@@ -57,10 +57,10 @@ test_dict = {'log_path': ["log/test/pacman/clip/domain"], 'base_path':['./result
 		'cl_decay_master' :[1],
 		'warmup': [ 80],
 		'train': [  40],
-			 'with_domain': [True],
+			 'with_domain': [False],
 			 'ent_mas':[0.01],
 			 'ent_sub':[0.01],
-			'pacmanScoreRes':[None, 100]
+			'pacmanScoreRes':[ 100]
 			}
 TERM_CONDITION = True
 NSAMPLES = 4
