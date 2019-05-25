@@ -1003,6 +1003,10 @@ class MlshExplorer_v2:
 		self.cl_decay = cl_decay
 		self.master_lr = lr_mas
 		self.master_cl = cliprange_mas
+		self.lr_sub = lr_sub
+		self.cl_sub = cliprange_sub
+		self.lr_dec_sub = lr_decay_sub
+		self.cl_dec_sub = cl_decay_sub
 		self.states = None
 		self.done_m = [False for _ in range(1)]
 		self.done = [False for _ in range(1)]
@@ -1084,7 +1088,12 @@ class MlshExplorer_v2:
 		# 	self.done = [False]
 		self.obs[:] = obs
 		self.domain[:] = domain
-		self.done_m = True # Delayed done flag to seperate from the previous episode which may not have ended in death
+		if len(self.mb_dones_m[self.actor]) > 0:
+			self.mb_dones_m[self.actor][-1] = True # Delayed done flag to seperate from the previous episode which may not have ended in death
+
+		if len(self.mb_dones[self.actor]) > 0:
+			self.mb_dones[self.actor][-1] = True
+
 		if self.t % self.time_dialation:
 			self.t += (self.time_dialation - (self.t % self.time_dialation)) # fast-forward to next master time step
 			#save partial exp
@@ -1112,7 +1121,7 @@ class MlshExplorer_v2:
 					self.mb_neglogpacs.append([])
 					self.mb_dones.append([])
 					self.mb_rewards.append([])
-					self.mb_domains.append([])
+
 				else:
 					self.actor = 0
 					if self.warm_up_done:
@@ -1222,10 +1231,8 @@ class MlshExplorer_v2:
 
 		t = 0
 		sub = int(next(master_actions))
-		for i,_ in enumerate(mb_returns):
-			if self.mb_dones[i] or t == self.time_dialation:
-				t = 0
-				sub = int(next(master_actions))
+		for i, _ in enumerate(mb_returns):
+
 			subobs[sub].append(self.mb_obs[i])
 			subret[sub].append(mb_returns[i])
 			subdon[sub].append(self.mb_dones[i])
@@ -1234,6 +1241,12 @@ class MlshExplorer_v2:
 			subneg[sub].append(self.mb_neglogpacs[i])
 
 			t += 1
+			if self.mb_dones[i] or t == self.time_dialation:
+				t = 0
+				try:
+					sub = int(next(master_actions))
+				except StopIteration:
+					break
 
 		subobs = [np.asarray(obs, dtype=self.obs.dtype) for obs in subobs]
 		subret = [np.asarray(ret, dtype=np.float32).squeeze() for ret in subret]
@@ -1256,9 +1269,13 @@ class MlshExplorer_v2:
 						subneg[i]))
 					slices = dict(
 						zip(['obs', 'returns', 'masks', 'actions', 'values', 'neglogpacs'], slices))
-					self.subs[i].train(self.lr, self.cliprange, **slices)
+					self.subs[i].train(self.lr_sub, self.cl_sub, **slices)
+
+		self.lr_sub *= self.lr_dec_sub
+		self.cl_sub *= self.cl_dec_sub
 
 		self.mb_obs, self.mb_rewards, self.mb_actions, self.mb_values, self.mb_dones, self.mb_neglogpacs = [[]], [[]], [[]], [[]], [[]], [[]]
+		pass
 
 
 
@@ -1336,7 +1353,7 @@ class MlshExplorer_v2:
 	def get_action(self, state, env):
 
 		#self.obs[:] = env.obs
-		if not self.warm_up_done and self.t >= self.warm_up_T:
+		if (not self.warm_up_done) and self.t >= self.warm_up_T:
 			self.warm_up_done = True
 			self.t = 0
 
@@ -1346,6 +1363,7 @@ class MlshExplorer_v2:
 				self.t = 0 # assuming subPolicies have convergede enough that no further resets are needed
 			else:
 				self.reset_master()
+				self.t = 0
 				self.warm_up_done = False # reset master policy and reenter warmup period
 
 		if self.t % self.time_dialation == 0:
@@ -1376,7 +1394,7 @@ class MlshExplorer_v2:
 		self.mb_obs_m, self.mb_rewards_m, self.mb_actions_m, self.mb_values_m, self.mb_dones_m, self.mb_neglogpacs_m = [[]], [[]], [[]], [[]], [[]], [[]]
 		self.mb_obs, self.mb_rewards, self.mb_actions, self.mb_values, self.mb_dones, self.mb_neglogpacs = [[]], [[]], [[]], [[]], [[]], [[]]
 		self.exp = 0
-		self.t = 0
+
 		self.actor = 0
 		self.cliprange = self.master_cl
 		self.lr = self.master_lr
