@@ -1139,6 +1139,7 @@ class MlshExplorer_v2:
 				if self.retrain_N is not None and self.reset_count >= self.retrain_N:
 					self.t = 0 # assuming subPolicies have convergede enough that no further resets are needed
 				else:
+					self.train_subs() #use the gather xp to train the subs before resetting the master
 					self.reset_master()
 					self.warm_up_done = False # reset master policy and reenter warmup period
 
@@ -1157,9 +1158,18 @@ class MlshExplorer_v2:
 				self.mb_dones_m.append([])
 				self.mb_rewards_m.append([])
 				self.mb_domains_m.append([])
+
+				self.mb_obs.append([])
+				self.mb_actions.append([])
+				self.mb_values.append([])
+				self.mb_neglogpacs.append([])
+				self.mb_dones.append([])
+				self.mb_rewards.append([])
+
 			else:
 				self.actor = 0
-				self.train_subs()
+				if self.warm_up_done and len(self.mb_rewards):
+					self.train_subs()
 				self.train()
 
 	def train_subs(self):
@@ -1239,7 +1249,8 @@ class MlshExplorer_v2:
 						zip(['obs', 'returns', 'masks', 'actions', 'values', 'neglogpacs'], slices))
 					self.subs[i].train(self.lr, self.cliprange, **slices)
 
-
+		self.mb_obs, self.mb_rewards, self.mb_actions, self.mb_values, self.mb_dones, self.mb_neglogpacs = [[]], [[]], [
+			[]], [[]], [[]], [[]]
 
 
 
