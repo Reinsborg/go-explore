@@ -40,7 +40,7 @@ LOG_DIR = None
 
 TEST_OVERRIDE = True
 SAVE_MODEL = False
-test_dict = {'log_path': ["log/debug/pacman/clip/domain"], 'base_path':['./results/debug/pacman'],
+test_dict = {'log_path': ["log/test/pacman/clip/domain"], 'base_path':['./results/debug/pacman'],
 			 'explorer':['mlsh'], 'game':['pacman'], 'actors':[1],
 			 'nexp':[1024], 'batch_size':[100], 'resolution': [16],
 			 'explore_steps':[100],
@@ -60,7 +60,7 @@ test_dict = {'log_path': ["log/debug/pacman/clip/domain"], 'base_path':['./resul
 			 'with_domain': [True],
 			 'ent_mas':[0.01],
 			 'ent_sub':[0.01],
-
+			'pacmanScoreRes':[None, 100]
 			}
 TERM_CONDITION = True
 NSAMPLES = 4
@@ -120,7 +120,8 @@ def _run(resolution=16, score_objects=True, mean_repeat=20,
 		 load_model = None,
 		 reward_function = 'clip',
 		 ent_mas = 0.01,
-		 ent_sub = 0.01
+		 ent_sub = 0.01,
+		 pacmanScoreRes = None
 
 
 		 ):
@@ -206,10 +207,16 @@ def _run(resolution=16, score_objects=True, mean_repeat=20,
 		game_args = dict(
 			x_repeat=x_repeat,
 			unprocessed_state=True)
-		grid_resolution = (
-			GridDimension('level', 1),
-			GridDimension('x', resolution), GridDimension('y', resolution)
-		)
+		if pacmanScoreRes is None:
+			grid_resolution = (
+				GridDimension('level', 1),
+				GridDimension('x', resolution), GridDimension('y', resolution)
+			)
+		else:
+			grid_resolution = (
+				GridDimension('level', 1), GridDimension('score', pacmanScoreRes),
+				GridDimension('x', resolution), GridDimension('y', resolution)
+			)
 	else:
 		raise NotImplementedError("Unknown game: " + game)
 
