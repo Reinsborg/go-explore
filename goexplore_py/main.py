@@ -40,8 +40,8 @@ LOG_DIR = None
 
 TEST_OVERRIDE = True
 SAVE_MODEL = False
-test_dict = {'log_path': ["log/test/pacman/clip/nodomain"], 'base_path':['./results/debug/pacman'],
-			 'explorer':['mlsh'], 'game':['pacman'], 'actors':[1],
+test_dict = {'log_path': ["log/test/pacman/scoreRes100/clip/nodomain"], 'base_path':['./results/debug/pacman'],
+			 'explorer':['repeated','ppo','mlsh'], 'game':['pacman'], 'actors':[1],
 			 'nexp':[1024], 'batch_size':[100], 'resolution': [16],
 			 'explore_steps':[100],
 		'lr': [1.0e-03], 'lr_decay':[ 1],
@@ -49,8 +49,8 @@ test_dict = {'log_path': ["log/test/pacman/clip/nodomain"], 'base_path':['./resu
 		'n_tr_epochs':[4],
 		'mbatch': [4],
 		'gamma':[0.999], 'lam':[0.95],
-		'nsubs' : [8],
-		'timedialation': [64],
+		'nsubs' : [4],
+		'timedialation': [8],
 		'master_lr': [0.01],
 		'lr_decay_master': [1],
 		'master_cl': [0.1],
