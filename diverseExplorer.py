@@ -1168,7 +1168,7 @@ class MlshExplorer_v2:
 
 			else:
 				self.actor = 0
-				if self.warm_up_done and len(self.mb_rewards):
+				if self.warm_up_done and len(self.mb_rewards[0]):
 					self.train_subs()
 				self.train()
 
