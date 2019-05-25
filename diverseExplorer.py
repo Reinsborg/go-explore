@@ -1203,12 +1203,12 @@ class MlshExplorer_v2:
 		else:
 			master_actions = iter(np.asarray(self.mb_actions_m).squeeze())
 
-		subobs = [np.empty(shape=(0,)) for _ in self.subs]
-		subret = [np.empty(shape=(0,))for _ in self.subs]
-		subdon = [np.empty(shape=(0,))for _ in self.subs]
-		subact = [np.empty(shape=(0,)) for _ in self.subs]
-		subval = [np.empty(shape=(0,)) for _ in self.subs]
-		subneg = [np.empty(shape=(0,)) for _ in self.subs]
+		subobs = [[] for _ in self.subs]
+		subret = [[]for _ in self.subs]
+		subdon = [[]for _ in self.subs]
+		subact = [[] for _ in self.subs]
+		subval = [[] for _ in self.subs]
+		subneg = [[] for _ in self.subs]
 
 		t = 0
 		sub = int(next(master_actions))
@@ -1224,6 +1224,14 @@ class MlshExplorer_v2:
 			subneg[sub].append(self.mb_neglogpacs[i])
 
 			t += 1
+
+		subobs = np.asarray(subobs, dtype=self.obs.dtype)
+		subret = np.asarray(subret, dtype=np.float32).squeeze()
+		subact = np.asarray(subact).squeeze()
+		subval = np.asarray(subval, dtype=np.float32).squeeze()
+		subneg = np.asarray(subneg, dtype=np.float32).squeeze()
+		subdon = np.asarray(subdon, dtype=np.bool).squeeze()
+
 		for i in range(self.nsubs):
 			inds = np.arange(len(subret[i]))
 			for _ in range(self.n_train_epoch):
@@ -1234,7 +1242,7 @@ class MlshExplorer_v2:
 						continue
 					mbinds = inds[start:end]
 					slices = (arr[mbinds] for arr in (
-						subobs[i], subret[i], subdon[i], subact[i], subact[i],
+						subobs[i], subret[i], subdon[i], subact[i], subval[i],
 						subneg[i]))
 					slices = dict(
 						zip(['obs', 'returns', 'masks', 'actions', 'values', 'neglogpacs'], slices))
