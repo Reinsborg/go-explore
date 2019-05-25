@@ -1213,7 +1213,7 @@ class MlshExplorer_v2:
 		t = 0
 		sub = next(master_actions)
 		for i,_ in enumerate(mb_returns):
-			if self.mb_dones or t == self.time_dialation:
+			if self.mb_dones[i] or t == self.time_dialation:
 				t = 0
 				sub = next(master_actions)
 			subobs[sub].append(self.mb_obs[i])
