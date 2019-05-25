@@ -42,7 +42,7 @@ TEST_OVERRIDE = True
 SAVE_MODEL = False
 test_dict = {'log_path': ["log/debug/pacman/clip/domain"], 'base_path':['./results/debug/pacman'],
 			 'explorer':['mlsh'], 'game':['pacman'], 'actors':[1],
-			 'nexp':[1024], 'batch_size':[100], 'resolution': [16],
+			 'nexp':[32], 'batch_size':[100], 'resolution': [16],
 			 'explore_steps':[100],
 		'lr': [1.0e-03], 'lr_decay':[ 1],
 		'cliprange':[0.1], 'cl_decay': [ 1],

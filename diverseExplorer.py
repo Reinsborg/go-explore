@@ -996,7 +996,7 @@ class MlshExplorer_v2:
 		self.n_mb = nminibatches
 		self.nbatch_train = self.batch // self.n_mb
 		self.mb_obs_m, self.mb_rewards_m, self.mb_actions_m, self.mb_values_m, self.mb_dones_m, self.mb_neglogpacs_m, \
-		self.mb_domains_m = [[]], [[]], [[]], [[]], [[]], [[]], [[]]
+			self.mb_domains_m = [[]], [[]], [[]], [[]], [[]], [[]], [[]]
 		self.mb_obs, self.mb_rewards, self.mb_actions, self.mb_values, self.mb_dones, self.mb_neglogpacs = [[]], [[]], [[]], [[]], [[]], [[]]
 		self.lr = lr_mas
 		self.lr_decay = lr_decay
@@ -1105,8 +1105,18 @@ class MlshExplorer_v2:
 					self.mb_dones_m.append([])
 					self.mb_rewards_m.append([])
 					self.mb_domains_m.append([])
+
+					self.mb_obs.append([])
+					self.mb_actions.append([])
+					self.mb_values.append([])
+					self.mb_neglogpacs.append([])
+					self.mb_dones.append([])
+					self.mb_rewards.append([])
+					self.mb_domains.append([])
 				else:
 					self.actor = 0
+					if self.warm_up_done:
+						self.train_subs()
 					self.train()
 
 
@@ -1248,8 +1258,7 @@ class MlshExplorer_v2:
 						zip(['obs', 'returns', 'masks', 'actions', 'values', 'neglogpacs'], slices))
 					self.subs[i].train(self.lr, self.cliprange, **slices)
 
-		self.mb_obs, self.mb_rewards, self.mb_actions, self.mb_values, self.mb_dones, self.mb_neglogpacs = [[]], [[]], [
-			[]], [[]], [[]], [[]]
+		self.mb_obs, self.mb_rewards, self.mb_actions, self.mb_values, self.mb_dones, self.mb_neglogpacs = [[]], [[]], [[]], [[]], [[]], [[]]
 
 
 
