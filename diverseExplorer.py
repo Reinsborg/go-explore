@@ -1139,7 +1139,8 @@ class MlshExplorer_v2:
 				if self.retrain_N is not None and self.reset_count >= self.retrain_N:
 					self.t = 0 # assuming subPolicies have convergede enough that no further resets are needed
 				else:
-					self.train_subs() #use the gather xp to train the subs before resetting the master
+					if self.exp > 1:
+						self.train_subs() #use the gather xp to train the subs before resetting the master
 					self.reset_master()
 					self.warm_up_done = False # reset master policy and reenter warmup period
 
@@ -1193,7 +1194,7 @@ class MlshExplorer_v2:
 		mb_returns = np.zeros_like(self.mb_rewards)
 		mb_advs = np.zeros_like(self.mb_rewards)
 		lastgaelam = 0
-		for t in reversed(range(self.nsteps)):
+		for t in reversed(range(len(self.mb_rewards))):
 			if t == self.nsteps - 1:
 				nextnonterminal = 1.0 - self.done
 				nextvalues = last_values
@@ -1354,6 +1355,7 @@ class MlshExplorer_v2:
 
 	def reset_master(self):
 		self.mb_obs_m, self.mb_rewards_m, self.mb_actions_m, self.mb_values_m, self.mb_dones_m, self.mb_neglogpacs_m = [[]], [[]], [[]], [[]], [[]], [[]]
+		self.mb_obs, self.mb_rewards, self.mb_actions, self.mb_values, self.mb_dones, self.mb_neglogpacs = [[]], [[]], [[]], [[]], [[]], [[]]
 		self.exp = 0
 		self.t = 0
 		self.actor = 0
