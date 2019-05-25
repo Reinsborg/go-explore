@@ -160,7 +160,7 @@ class MyMsPacman:
 
 
 
-        return PacmanPosLevel(level=level, x=x, y=y, score=self.pos.score)
+        return PacmanPosLevel(level=level, x=x, y=y, score=self.cur_score)
 
 
 
