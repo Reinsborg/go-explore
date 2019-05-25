@@ -22,7 +22,7 @@ from tensorflow import summary, ConfigProto, Session, name_scope
 from goexplore_py.myUtil import makeHistProto
 from itertools import product as itproduct, islice
 
-from diverseExplorer import PPOExplorer_v3 as PPOExplorer, MlshExplorer
+from diverseExplorer import PPOExplorer_v3 as PPOExplorer, MlshExplorer_v2 as MlshExplorer
 
 VERSION = 1
 
@@ -40,8 +40,8 @@ LOG_DIR = None
 
 TEST_OVERRIDE = True
 SAVE_MODEL = False
-test_dict = {'log_path': ["log/test/pacman/clip/domain"], 'base_path':['./results/test/pacman'],
-			 'explorer':['repeated', 'ppo', 'mlsh'], 'game':['pacman'], 'actors':[1],
+test_dict = {'log_path': ["log/debug/pacman/clip/domain"], 'base_path':['./results/debug/pacman'],
+			 'explorer':['mlsh'], 'game':['pacman'], 'actors':[1],
 			 'nexp':[1024], 'batch_size':[100], 'resolution': [16],
 			 'explore_steps':[100],
 		'lr': [1.0e-03], 'lr_decay':[ 1],
