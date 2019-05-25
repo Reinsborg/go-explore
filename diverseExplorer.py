@@ -1125,24 +1125,14 @@ class MlshExplorer_v2:
 		self.reward = e['reward']
 
 		if self.t % self.time_dialation == 0:
-			if not self.warm_up_done and self.t >= self.warm_up_T:
-				self.warm_up_done = True
-				self.t = 0
+
 			self.mb_rewards_m[self.actor].append(self.reward_m)
 			self.reward_m = 0
 			self.exp += 1
 
 		if self.warm_up_done:
+				self.mb_rewards[self.actor].append(self.reward)
 
-			if self.t >= self.train_t:
-
-				if self.retrain_N is not None and self.reset_count >= self.retrain_N:
-					self.t = 0 # assuming subPolicies have convergede enough that no further resets are needed
-				else:
-					if self.exp > 1:
-						self.train_subs() #use the gather xp to train the subs before resetting the master
-					self.reset_master()
-					self.warm_up_done = False # reset master policy and reenter warmup period
 
 
 		if self.exp >= self.nsteps:
@@ -1169,7 +1159,7 @@ class MlshExplorer_v2:
 
 			else:
 				self.actor = 0
-				if self.warm_up_done and len(self.mb_rewards[0]):
+				if self.warm_up_done:
 					self.train_subs()
 				self.train()
 
@@ -1329,6 +1319,17 @@ class MlshExplorer_v2:
 	def get_action(self, state, env):
 
 		#self.obs[:] = env.obs
+		if not self.warm_up_done and self.t >= self.warm_up_T:
+			self.warm_up_done = True
+			self.t = 0
+
+		if self.warm_up_done and self.t >= self.train_t:
+
+			if self.retrain_N is not None and self.reset_count >= self.retrain_N:
+				self.t = 0 # assuming subPolicies have convergede enough that no further resets are needed
+			else:
+				self.reset_master()
+				self.warm_up_done = False # reset master policy and reenter warmup period
 
 		if self.t % self.time_dialation == 0:
 			self.cur_sub, master_values, _, master_neglogpacs = self.master.step(self.obs, self.domain)
@@ -1341,6 +1342,7 @@ class MlshExplorer_v2:
 			self.mb_values_m[self.actor].append(master_values)
 			self.mb_neglogpacs_m[self.actor].append(master_neglogpacs)
 			self.mb_dones_m[self.actor].append(self.done_m)
+			self.done_m = False
 
 		actions, values, _, neglogpacs = self.subs[self.cur_sub].step(self.obs)
 
@@ -1349,7 +1351,7 @@ class MlshExplorer_v2:
 			self.mb_actions[self.actor].append(actions)
 			self.mb_values[self.actor].append(values)
 			self.mb_neglogpacs[self.actor].append(neglogpacs)
-			self.mb_dones[self.actor].append(self.done_m)
+			self.mb_dones[self.actor].append(self.done)
 
 		return actions
 
