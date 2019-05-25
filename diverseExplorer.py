@@ -1203,12 +1203,12 @@ class MlshExplorer_v2:
 		else:
 			master_actions = iter(self.mb_actions_m)
 
-		subobs = [np.ndarray() for _ in self.subs]
-		subret = [np.ndarray() for _ in self.subs]
-		subdon = [np.ndarray() for _ in self.subs]
-		subact = [np.ndarray() for _ in self.subs]
-		subval = [np.ndarray() for _ in self.subs]
-		subneg = [np.ndarray() for _ in self.subs]
+		subobs = [np.empty(shape=(0,)) for _ in self.subs]
+		subret = [np.empty(shape=(0,))for _ in self.subs]
+		subdon = [np.empty(shape=(0,))for _ in self.subs]
+		subact = [np.empty(shape=(0,)) for _ in self.subs]
+		subval = [np.empty(shape=(0,)) for _ in self.subs]
+		subneg = [np.empty(shape=(0,)) for _ in self.subs]
 
 		t = 0
 		sub = next(master_actions)
