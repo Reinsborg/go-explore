@@ -1199,9 +1199,9 @@ class MlshExplorer_v2:
 		if self.nacts > 1:
 			self.mb_obs, mb_returns, self.mb_dones, self.mb_actions, self.mb_values, self.mb_neglogpacs= \
 				map(ppo2.sf01, (self.mb_obs, mb_returns, self.mb_dones, self.mb_actions, self.mb_values, self.mb_neglogpacs))
-			master_actions = iter(ppo2.sf01(self.mb_actions_m))
+			master_actions = iter(ppo2.sf01(np.asarray(self.mb_actions_m).squeeze().swapaxes(0,1)))
 		else:
-			master_actions = iter(self.mb_actions_m)
+			master_actions = iter(np.asarray(self.mb_actions_m).squeeze())
 
 		subobs = [np.empty(shape=(0,)) for _ in self.subs]
 		subret = [np.empty(shape=(0,))for _ in self.subs]
