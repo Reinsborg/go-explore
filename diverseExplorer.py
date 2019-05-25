@@ -1211,11 +1211,11 @@ class MlshExplorer_v2:
 		subneg = [np.empty(shape=(0,)) for _ in self.subs]
 
 		t = 0
-		sub = next(master_actions)
+		sub = int(next(master_actions))
 		for i,_ in enumerate(mb_returns):
 			if self.mb_dones[i] or t == self.time_dialation:
 				t = 0
-				sub = next(master_actions)
+				sub = int(next(master_actions))
 			subobs[sub].append(self.mb_obs[i])
 			subret[sub].append(mb_returns[i])
 			subdon[sub].append(self.mb_dones[i])
