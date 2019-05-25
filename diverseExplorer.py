@@ -1044,7 +1044,7 @@ class MlshExplorer_v2:
 		# 	self.env.unwrapped.slip = 0
 
 		ob_space = env.observation_space
-		ac_space = gym.spaces.Discrete(len(self.subs))
+		ac_space = gym.spaces.Discrete(self.nsubs)
 		if  masterPolicy == policies.CnnPolicy_withDomain: #isinstance(masterPolicy., policies.CnnPolicy_withDomain):
 			assert domain_shape is not None, Exception('domain policy but no domain shape suplied')
 			self.master = ppo2.Model(policy=masterPolicy, ob_space=ob_space, ac_space=ac_space, nbatch_act=1,
