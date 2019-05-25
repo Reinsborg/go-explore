@@ -1225,12 +1225,12 @@ class MlshExplorer_v2:
 
 			t += 1
 
-		subobs = np.asarray(subobs, dtype=self.obs.dtype)
-		subret = np.asarray(subret, dtype=np.float32).squeeze()
-		subact = np.asarray(subact).squeeze()
-		subval = np.asarray(subval, dtype=np.float32).squeeze()
-		subneg = np.asarray(subneg, dtype=np.float32).squeeze()
-		subdon = np.asarray(subdon, dtype=np.bool).squeeze()
+		subobs = [np.asarray(obs, dtype=self.obs.dtype) for obs in subobs]
+		subret = [np.asarray(ret, dtype=np.float32).squeeze() for ret in subret]
+		subact = [np.asarray(act).squeeze() for act in subact]
+		subval = [np.asarray(val, dtype=np.float32).squeeze() for val in subval]
+		subneg = [np.asarray(neg, dtype=np.float32).squeeze() for neg in subneg]
+		subdon = [np.asarray(don, dtype=np.bool).squeeze() for don in subdon]
 
 		for i in range(self.nsubs):
 			inds = np.arange(len(subret[i]))
