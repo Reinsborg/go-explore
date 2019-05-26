@@ -40,7 +40,7 @@ LOG_DIR = None
 
 TEST_OVERRIDE = True
 SAVE_MODEL = False
-test_dict = {'log_path': ["log/test/pacman/scoreRes100/clip/nodomain"], 'base_path':['./results/debug/pacman'],
+test_dict = {'log_path': ["log/test/pacman/scoreRes1000/clip/nodomain"], 'base_path':['./results/debug/pacman'],
 			 'explorer':['ppo','mlsh', 'repeated'], 'game':['pacman'], 'actors':[1],
 			 'nexp':[1024], 'batch_size':[100], 'resolution': [16],
 			 'explore_steps':[100],
@@ -60,7 +60,7 @@ test_dict = {'log_path': ["log/test/pacman/scoreRes100/clip/nodomain"], 'base_pa
 			 'with_domain': [False],
 			 'ent_mas':[0.01],
 			 'ent_sub':[0.01],
-			'pacmanScoreRes':[ 100]
+			'pacmanScoreRes':[ 1000]
 			}
 TERM_CONDITION = True
 NSAMPLES = 4
@@ -453,8 +453,10 @@ def _run(resolution=16, score_objects=True, mean_repeat=20,
 					for k, v in expl.grid.items():
 						grid_copy[k] = v
 					# TODO: is 7z still necessary now that there are other ways to reduce space?
-					pickle.dump(grid_copy, lzma.open(filename + '.7z', 'wb', preset=0))
-
+					try:
+						pickle.dump(grid_copy, lzma.open(filename + '.7z', 'wb', preset=0))
+					except MemoryError:
+						 print('MemoryError when saving grid checkpoint')
 					# Clean up previous checkpoint.
 					if prev_checkpoint and clear_old_checkpoints:
 						os.remove(prev_checkpoint + '.7z')
@@ -465,8 +467,11 @@ def _run(resolution=16, score_objects=True, mean_repeat=20,
 					grid_set = {}
 					for k, v in expl.grid.items():
 						grid_set[k] = v.score
-					pickle.dump(grid_set, lzma.open(filename + '_set.7z', 'wb', preset=0))
-					pickle.dump(expl.real_grid, lzma.open(filename + '_set_real.7z', 'wb', preset=0))
+					try:
+						pickle.dump(grid_set, lzma.open(filename + '_set.7z', 'wb', preset=0))
+						pickle.dump(expl.real_grid, lzma.open(filename + '_set_real.7z', 'wb', preset=0))
+					except MemoryError:
+						print('MemroyError when saving  set and real_set checkpoint')
 
 					if PROFILER:
 						print("ITERATION:", n_iters)
