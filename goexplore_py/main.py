@@ -41,16 +41,16 @@ LOG_DIR = None
 TEST_OVERRIDE = True
 SAVE_MODEL = False
 test_dict = {'log_path': ["log/test/pacman/scoreRes1000/clip/nodomain"], 'base_path':['./results/debug/pacman'],
-			 'explorer':['ppo','mlsh', 'repeated'], 'game':['pacman'], 'actors':[1],
-			 'nexp':[1024], 'batch_size':[100], 'resolution': [16],
-			 'explore_steps':[100],
+			 'explorer':['mlsh'], 'game':['pacman'], 'actors':[1],
+			 'nexp':[1024], 'batch_size':[10], 'resolution': [16],
+			 'explore_steps':[1000],
 		'lr': [1.0e-03], 'lr_decay':[ 1],
 		'cliprange':[0.1], 'cl_decay': [ 1],
 		'n_tr_epochs':[4],
 		'mbatch': [4],
 		'gamma':[0.999], 'lam':[0.95],
 		'nsubs' : [4],
-		'timedialation': [8],
+		'timedialation': [64],
 		'master_lr': [0.01],
 		'lr_decay_master': [1],
 		'master_cl': [0.1],
@@ -60,7 +60,11 @@ test_dict = {'log_path': ["log/test/pacman/scoreRes1000/clip/nodomain"], 'base_p
 			 'with_domain': [False],
 			 'ent_mas':[0.01],
 			 'ent_sub':[0.01],
-			'pacmanScoreRes':[ 1000]
+			'pacmanScoreRes':[ None],
+			 'render':[1],
+			 'render_frameskip':[1],
+			 'prob_override':[0.3],
+			 'ignore_death':[4]
 			}
 TERM_CONDITION = True
 NSAMPLES = 4
@@ -121,7 +125,9 @@ def _run(resolution=16, score_objects=True, mean_repeat=20,
 		 reward_function = 'clip',
 		 ent_mas = 0.01,
 		 ent_sub = 0.01,
-		 pacmanScoreRes = None
+		 pacmanScoreRes = None,
+		 render = None,
+		 render_frameskip = 4
 
 
 		 ):
@@ -206,7 +212,7 @@ def _run(resolution=16, score_objects=True, mean_repeat=20,
 		game_class.MAX_PIX_VALUE = max_pix_value
 		game_args = dict(
 			x_repeat=x_repeat,
-			unprocessed_state=True)
+			unprocessed_state=True, render=render, frameskip = render_frameskip)
 		if pacmanScoreRes is None:
 			grid_resolution = (
 				GridDimension('level', 1),
@@ -359,10 +365,11 @@ def _run(resolution=16, score_objects=True, mean_repeat=20,
 							keys_found.append(key)
 					hist = makeHistProto(dist, bins=30, keys=keys_found)
 					entry.append(summary.Summary.Value(tag="Key_dist", histo=hist))
+					leveldist = Counter(e.level for e in expl.real_grid)
+					histlvl = makeHistProto(leveldist, bins=5)
+					entry.append(summary.Summary.Value(tag="Level_dist", histo=histlvl))
 
-				leveldist = Counter(e.level for e in expl.real_grid)
-				histlvl = makeHistProto(leveldist, bins=5)
-				entry.append(summary.Summary.Value(tag="Level_dist", histo=histlvl))
+
 				entry.append(summary.Summary.Value(tag="Avg traj-len", simple_value=(expl.frames_compute/batch_size)/explore_steps))
 				if sess is not None:
 					bytes = sess.run(tf.contrib.memory_stats.MaxBytesInUse())
@@ -520,10 +527,11 @@ def run(base_path, **kwargs):
 	json.dump(info, open(base_path + '/kwargs.json', 'w'))
 
 	print('Experiment running in', base_path)
-
-	_run(base_path=base_path, **kwargs)
-	if LOG_DIR is not None:
-		json.dump(info, open(LOG_DIR + '/kwargs.json', 'w'))
+	try:
+		_run(base_path=base_path, **kwargs)
+	finally:
+		if LOG_DIR is not None:
+			json.dump(info, open(LOG_DIR + '/kwargs.json', 'w'))
 
 
 if __name__ == '__main__':

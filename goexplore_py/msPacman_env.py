@@ -92,8 +92,8 @@ def clip(a, m, M):
 
 class MyMsPacman:
     def __init__(self, check_death: bool = True, unprocessed_state: bool = False,
-                 x_repeat=2, ):  # TODO: version that also considers the room objects were found in
-        self.env = FrameStack(WarpFrame(MyEpisodicLifeEnv(gym.make('MsPacmanNoFrameskip-v4'))),4)
+                 x_repeat=2, render = None, frameskip = 4 ):  # TODO: version that also considers the room objects were found in
+        self.env = FrameStack(WarpFrame(MyEpisodicLifeEnv(gym.make('MsPacmanDeterministic-v4'))),4)
         self.env.reset()
 
         self.ram = None
@@ -103,7 +103,7 @@ class MyMsPacman:
         self.rooms = {}
         self.room_time = None
         self.room_threshold = 40
-        self.idle_on_new_level = 260
+        self.idle_on_new_level = 90
         self.unwrapped.seed(0)
         self.unprocessed_state = unprocessed_state
         self.state = []
@@ -111,6 +111,11 @@ class MyMsPacman:
         self.x_repeat = x_repeat
         self.cur_lives = 5
         self.ignore_ram_death = False
+        self.render = render
+        self.frameskip = frameskip
+        self.frameno = 0
+        self.should_render = render-1
+        self.pic_mean = np.mean(self.env.unwrapped._get_obs())
 
 
     def __getattr__(self, e):
@@ -131,11 +136,17 @@ class MyMsPacman:
         self.cur_score = 0
         self.cur_steps = 0
         self.ram_death_state = -1
+        self.pic_mean = np.mean(unprocessed_state)
         self.pos = None
         self.pos = self.pos_from_unprocessed_state(self.get_face_pixels(unprocessed_state), unprocessed_state)
         if self.get_pos().level not in self.rooms:
             self.rooms[self.get_pos().level] = (False, unprocessed_state[50:].repeat(self.x_repeat, axis=1))
         self.room_time = (self.get_pos().level, 0)
+
+        if self.render is not None:
+            self.should_render += 1
+            self.should_render %= self.render
+
         if self.unprocessed_state:
             return observation
 
@@ -152,11 +163,15 @@ class MyMsPacman:
         if self.pos is not None:
             level = self.pos.level
 
-            direction_x = clip(int((self.pos.x - x) / 10), -1, 1)
-            direction_y = clip(int((self.pos.y - y) / 10), -1, 1)
-            if direction_x != 0 or direction_y != 0:
-                if y > 100 and y > 110 and x > 150 and x < 170:
-                    level += 1
+            state_mean = np.mean(unprocessed_state)
+            if abs(state_mean - self.pic_mean) > 10:
+                level += 1
+
+            # direction_x = clip(int((self.pos.x - x) // 10), -1, 1)
+            # direction_y = clip(int((self.pos.y - y) // 10), -1, 1)
+            # if direction_x != 0 or direction_y != 0:
+            #     if y > 99 and y < 109 and x > 152 and x < 165:
+            #         level += 1
 
 
 
@@ -174,11 +189,12 @@ class MyMsPacman:
             self.room_time,
             self.ram_death_state,
 
-            self.cur_lives
+            self.cur_lives,
+            self.pic_mean
         )
 
     def restore(self, data):
-        (full_state, state, score, steps, pos, room_time, ram_death_state, self.cur_lives) = data
+        (full_state, state, score, steps, pos, room_time, ram_death_state, self.cur_lives, self.pic_mean) = data
         self.state = copy.copy(state)
         self.env.reset()
         self.unwrapped.restore_full_state(full_state)
@@ -188,6 +204,10 @@ class MyMsPacman:
         self.pos = pos
         self.room_time = room_time
         self.ram_death_state = ram_death_state
+
+        if self.render is not None:
+            self.should_render += 1
+            self.should_render %= self.render
 
         if self.unprocessed_state:
             self.env.step(0) # take noop to update screen, this is not optimal solution
@@ -254,9 +274,11 @@ class MyMsPacman:
         self.pos = self.pos_from_unprocessed_state(face_pixels, unprocessed_state)
         if self.pos.level != self.room_time[0]:
             for _ in range(self.idle_on_new_level):
-                self.env.step(0)
-            self.room_time = (self.pos.level, 0)
+                observation, _,_,_= self.env.step(0)
+            unprocessed_state = self.env.unwrapped._get_obs()
 
+            self.room_time = (self.pos.level, 0)
+        self.pic_mean = np.mean(unprocessed_state)
         self.room_time = (self.pos.room, self.room_time[1] + 1)
         if (self.pos.level not in self.rooms or
                 (self.room_time[1] == self.room_threshold and
@@ -265,6 +287,13 @@ class MyMsPacman:
                 self.room_time[1] == self.room_threshold,
                 unprocessed_state[:-40].repeat(self.x_repeat, axis=1)
             )
+
+        if self.render is not None:
+            if self.should_render == 0:
+                if self.frameno == 0:
+                    self.env.render()
+                self.frameno = (self.frameno +1) % self.frameskip
+
         if self.unprocessed_state:
             return observation, reward, done, lol
         return copy.copy(self.state), reward, done, lol

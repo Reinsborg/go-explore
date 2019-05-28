@@ -39,7 +39,7 @@ class MyEpisodicLifeEnv(gym.Wrapper):
 		# check current lives, make loss of life terminal,
 		# then update lives to handle bonus lives
 		lives = self.env.unwrapped.ale.lives()
-		if lives < self.lives and lives > 0:
+		if lives < self.lives:
 			# for Qbert sometimes we stay in lives == 0 condtion for a few frames
 			# so its important to keep lives > 0, so that we only reset once
 			# the environment advertises done.
