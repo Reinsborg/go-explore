@@ -23,7 +23,7 @@ from goexplore_py.myUtil import makeHistProto
 from itertools import product as itproduct, islice
 
 from diverseExplorer import PPOExplorer_v3 as PPOExplorer, MlshExplorer_v2 as MlshExplorer
-
+import resource
 VERSION = 1
 
 THRESH_TRUE = 20_000_000_000
@@ -70,7 +70,17 @@ TERM_CONDITION = True
 NSAMPLES = 4
 
 
+def memory_limit():
+    soft, hard = resource.getrlimit(resource.RLIMIT_AS)
+    resource.setrlimit(resource.RLIMIT_AS, (get_memory() * 1024 - 500000, hard))
 
+def get_memory():
+    with open('/proc/meminfo', 'r') as mem:
+        free_memory = 0
+        for i in mem:
+            sline = i.split()
+            if str(sline[0]) in ('MemFree:', 'Buffers:', 'Cached:'):
+                free_memory += int(sline[1])
 
 
 
@@ -527,8 +537,12 @@ def run(base_path, **kwargs):
 	json.dump(info, open(base_path + '/kwargs.json', 'w'))
 
 	print('Experiment running in', base_path)
+	memory_limit()
 	try:
 		_run(base_path=base_path, **kwargs)
+	except MemoryError:
+		sys.stderr.write('\n\nERROR: Memory Exception\n')
+		sys.exit(1)
 	finally:
 		if LOG_DIR is not None:
 			json.dump(info, open(LOG_DIR + '/kwargs.json', 'w'))
