@@ -114,7 +114,9 @@ class MyMsPacman:
         self.render = render
         self.frameskip = frameskip
         self.frameno = 0
-        self.should_render = render-1
+        self.should_render = 0
+        if self.render is not None:
+            self.should_render = render-1
         self.pic_mean = np.mean(self.env.unwrapped._get_obs())
 
 
