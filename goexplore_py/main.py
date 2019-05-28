@@ -81,6 +81,7 @@ def get_memory():
             sline = i.split()
             if str(sline[0]) in ('MemFree:', 'Buffers:', 'Cached:'):
                 free_memory += int(sline[1])
+    return free_memory
 
 
 
