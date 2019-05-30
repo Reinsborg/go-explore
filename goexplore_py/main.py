@@ -40,17 +40,17 @@ LOG_DIR = None
 
 TEST_OVERRIDE = True
 SAVE_MODEL = False
-test_dict = {'log_path': ["log/test/pacman/scoreRes1000/clip/nodomain"], 'base_path':['./results/debug/pacman'],
-			 'explorer':['mlsh'], 'game':['pacman'], 'actors':[1],
-			 'nexp':[1024], 'batch_size':[10], 'resolution': [16],
-			 'explore_steps':[1000],
+test_dict = {'log_path': ["log/debug"], 'base_path':['./results/debug/'],
+			 'explorer':['mlsh'], 'game':['montezuma'], 'actors':[1],
+			 'nexp':[128], 'batch_size':[100], 'resolution': [16],
+			 'explore_steps':[100],
 		'lr': [1.0e-03], 'lr_decay':[ 1],
 		'cliprange':[0.1], 'cl_decay': [ 1],
 		'n_tr_epochs':[4],
 		'mbatch': [4],
 		'gamma':[0.999], 'lam':[0.95],
 		'nsubs' : [4],
-		'timedialation': [64],
+		'timedialation': [32],
 		'master_lr': [0.01],
 		'lr_decay_master': [1],
 		'master_cl': [0.1],
@@ -61,10 +61,12 @@ test_dict = {'log_path': ["log/test/pacman/scoreRes1000/clip/nodomain"], 'base_p
 			 'ent_mas':[0.01],
 			 'ent_sub':[0.01],
 			'pacmanScoreRes':[ None],
-			 'render':[1],
+			 'render':[None],
 			 'render_frameskip':[1],
 			 'prob_override':[0.3],
-			 'ignore_death':[4]
+			 'ignore_death':[4],
+			 'retrain_N':[0],
+			 'clean_up_grid':[True]
 			}
 TERM_CONDITION = True
 NSAMPLES = 4
@@ -138,8 +140,8 @@ def _run(resolution=16, score_objects=True, mean_repeat=20,
 		 ent_sub = 0.01,
 		 pacmanScoreRes = None,
 		 render = None,
-		 render_frameskip = 4
-
+		 render_frameskip = 4,
+		 clean_up_grid = False
 
 		 ):
 	sess = None
@@ -348,6 +350,7 @@ def _run(resolution=16, score_objects=True, mean_repeat=20,
 		if sess is not None:
 			summaryWriter.add_graph(graph=sess.graph)
 		keys_found = []
+		removed_cells = 0
 		try:
 			while should_continue():
 				# Run one iteration
@@ -365,9 +368,12 @@ def _run(resolution=16, score_objects=True, mean_repeat=20,
 				last_time = cur_time
 				n_iters += 1
 
+				if game == 'pacman':
+					entry = [summary.Summary.Value(tag='Rooms_Found', simple_value=max(e.level for e in expl.grid) )]
 
-				entry = [summary.Summary.Value(tag='Rooms_Found', simple_value=len(Counter( (e.room, e.level) for e in expl.grid).keys()))]
-				entry.append(summary.Summary.Value(tag='Cells', simple_value=len(expl.grid)))
+				else:
+					entry = [summary.Summary.Value(tag='Rooms_Found', simple_value=len(Counter( (e.room, e.level) for e in expl.grid).keys()))]
+				entry.append(summary.Summary.Value(tag='Cells', simple_value=len(expl.grid) + removed_cells))
 				entry.append(summary.Summary.Value(tag='Top_score', simple_value=max(e.score for e in expl.grid.values())))
 				if game == "montezuma":
 					dist = Counter(e.score for e in expl.real_grid)
@@ -401,6 +407,15 @@ def _run(resolution=16, score_objects=True, mean_repeat=20,
 						old // THRESH_TRUE != expl.frames_true // THRESH_TRUE or  # We just passed the THRESH_TRUE threshold
 						old_compute // THRESH_COMPUTE != expl.frames_compute // THRESH_COMPUTE or  # We just passed the THRESH_COMPUTE threshold
 						not should_continue()):  # This is the last iteration
+
+
+					#Remove old grid entries:
+					if clean_up_grid:
+						max_level = max(e.level for e in expl.grid)
+						for cell_key in expl.grid:
+							if max_level - cell_key.level > 2:
+								del expl.grid[cell_key]
+								removed_cells += 1
 
 					# Quick bookkeeping, printing update
 					seen_level_1 = expl.seen_level_1
