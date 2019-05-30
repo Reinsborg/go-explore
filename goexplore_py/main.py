@@ -40,17 +40,17 @@ LOG_DIR = None
 
 TEST_OVERRIDE = True
 SAVE_MODEL = False
-test_dict = {'log_path': ["log/debug"], 'base_path':['./results/debug/'],
-			 'explorer':['mlsh'], 'game':['montezuma'], 'actors':[1],
-			 'nexp':[128], 'batch_size':[100], 'resolution': [16],
-			 'explore_steps':[100],
+test_dict = {'log_path': ["log/test/pacman/reduced_grid"], 'base_path':['./results/test/pacman/reduced_grid'],
+			 'explorer':['repeated', 'ppo', 'mlsh'], 'game':['pacman'], 'actors':[1],
+			 'nexp':[1024], 'batch_size':[40], 'resolution': [16],
+			 'explore_steps':[1000],
 		'lr': [1.0e-03], 'lr_decay':[ 1],
 		'cliprange':[0.1], 'cl_decay': [ 1],
 		'n_tr_epochs':[4],
 		'mbatch': [4],
 		'gamma':[0.999], 'lam':[0.95],
 		'nsubs' : [4],
-		'timedialation': [32],
+		'timedialation': [64],
 		'master_lr': [0.01],
 		'lr_decay_master': [1],
 		'master_cl': [0.1],
@@ -65,7 +65,7 @@ test_dict = {'log_path': ["log/debug"], 'base_path':['./results/debug/'],
 			 'render_frameskip':[1],
 			 'prob_override':[0.3],
 			 'ignore_death':[4],
-			 'retrain_N':[0],
+			 'retrain_N':[None],
 			 'clean_up_grid':[True]
 			}
 TERM_CONDITION = True

@@ -182,21 +182,26 @@ class Explore:
         self.dones = 0
 
 
-        def empty_room():
-            y, x = get_env().env.unwrapped.observation_space.shape[0:2]
-            x = x * self.env_info[1]['x_repeat'] // grid_info[-1].div
-            y = y // grid_info[-1].div
-            domain_shape = (y, x,1)
-            return np.zeros(domain_shape, dtype=np.uint8)
 
-        self.domain_knowledge = defaultdict(empty_room)
+
+        self.domain_knowledge = defaultdict(self.empty_room)
         if with_domain:
 
             cell = self.grid[self.get_cell()].real_cell
-            self.domain_knowledge[0][cell.y][cell.x] += 1
+            self.domain_knowledge[(0,0)][cell.y][cell.x] += 1
 
+    def empty_room(self):
+        y, x = get_env().env.unwrapped.observation_space.shape[0:2]
+        x = x * self.env_info[1]['x_repeat'] // self.grid_info[-1].div
+        y = y // self.grid_info[-1].div
+        domain_shape = (y, x, 1)
+        return np.zeros(domain_shape, dtype=np.uint8)
 
-
+    def get_domain_knowledge(self, room, level):
+        if self.with_domain:
+            return self.domain_knowledge[(room, level)]
+        else:
+            return self.empty_room()
     def make_env(self):
         global ENV
         if ENV is None:
@@ -281,7 +286,7 @@ class Explore:
             #assert trajectory[-1].to.restore is not None, "Failed to assign restore in trajectory"
             if explorer.__repr__() == "mlsh" or explorer.__repr__() == "ppo":
 
-                e = {'done': done, 'observation': self.state, 'domain': self.domain_knowledge[trajectory[-1].real_pos.room]}
+                e = {'done': done, 'observation': self.state, 'domain': self.get_domain_knowledge(trajectory[-1].real_pos.room, trajectory[-1].real_pos.level)}
                 # if (max_steps > 0 and len(trajectory) >= max_steps):
                 #     e['done'] = 1
 
