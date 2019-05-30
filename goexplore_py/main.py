@@ -411,11 +411,14 @@ def _run(resolution=16, score_objects=True, mean_repeat=20,
 
 					#Remove old grid entries:
 					if clean_up_grid:
+						to_remove = set()
 						max_level = max(e.level for e in expl.grid)
 						for cell_key in expl.grid:
 							if max_level - cell_key.level > 2:
-								del expl.grid[cell_key]
-								removed_cells += 1
+								to_remove.add(cell_key)
+						for cell_key in to_remove:
+							del expl.grid[cell_key]
+							removed_cells += 1
 
 					# Quick bookkeeping, printing update
 					seen_level_1 = expl.seen_level_1
