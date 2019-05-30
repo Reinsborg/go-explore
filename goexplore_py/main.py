@@ -506,8 +506,8 @@ def _run(resolution=16, score_objects=True, mean_repeat=20,
 				expl.explorer.master.save(f'{base_path}/master')
 				expl.explorer.master.save(f'{logDir}/master')
 				for sub in expl.explorer.subs:
-					sub.model.save(f'{base_path}/{sub}')
-					sub.model.save(f'{logDir}/{sub}')
+					sub.save(f'{base_path}/{sub}')
+					sub.save(f'{logDir}/{sub}')
 			#print(expl.explorer.__repr__())
 			if sess is not None:
 				sess.__exit__(None, None, None)
