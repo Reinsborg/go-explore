@@ -420,6 +420,14 @@ def _run(resolution=16, score_objects=True, mean_repeat=20,
 							del expl.grid[cell_key]
 							removed_cells += 1
 
+						to_remove = set()
+						for cell_key in expl.real_grid:
+							if max_level - cell_key.level > 2:
+								to_remove.add(cell_key)
+						for cell_key in to_remove:
+							expl.real_grid.remove(cell_key)
+
+
 					# Quick bookkeeping, printing update
 					seen_level_1 = expl.seen_level_1
 					filename = f'{base_path}/{expl.frames_true:0{n_digits}}_{expl.frames_compute:0{n_digits}}'
