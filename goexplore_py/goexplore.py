@@ -108,13 +108,14 @@ class Explore:
             batch_size=100,
             reset_cell_on_update=False,
             with_domain = False,
-            load_model = None
+            load_model = None,
+            reduce_grid = False
     ):
         global POOL, ENV
         self.env_info = env
         self.make_env()
 
-
+        self.reduce_grid = reduce_grid
 
         self.pool_class = pool_class
         self.reset_pool = reset_pool
@@ -145,6 +146,8 @@ class Explore:
                             sub.model.load(f'{load_model}/{sub}')
                 else:
                     self.explorer.init_model(get_env(), masterPolicy=goexplore_py.policies.CnnPolicy, subPolicies=goexplore_py.policies.CnnPolicy)
+            elif isinstance(get_env().observation_space, gym.spaces.MultiBinary):
+                self.explorer.init_model(get_env(), masterPolicy=goexplore_py.policies.MlpPolicy, subPolicies=goexplore_py.policies.MlpPolicy)
             else:
                 raise Exception("Unkown observation space")
         elif self.explorer.__repr__() == 'ppo':
@@ -191,11 +194,14 @@ class Explore:
             self.domain_knowledge[(0,0)][cell.y][cell.x] += 1
 
     def empty_room(self):
-        y, x = get_env().env.unwrapped.observation_space.shape[0:2]
-        x = x * self.env_info[1]['x_repeat'] // self.grid_info[-1].div
-        y = y // self.grid_info[-1].div
-        domain_shape = (y, x, 1)
-        return np.zeros(domain_shape, dtype=np.uint8)
+        if self.with_domain:
+            y, x = get_env().env.unwrapped.observation_space.shape[0:2]
+            x = x * self.env_info[1]['x_repeat'] // self.grid_info[-1].div
+            y = y // self.grid_info[-1].div
+            domain_shape = (y, x, 1)
+            return np.zeros(domain_shape, dtype=np.uint8)
+        else:
+            return np.zeros((1,1),dtype=np.uint8)
 
     def get_domain_knowledge(self, room, level):
         if self.with_domain:
@@ -298,7 +304,7 @@ class Explore:
                 # else:
                 #     e['reward'] = 0 + np.clip(reward, -1, 1)
                 #     explorer.seen_state(e)
-                reward = clipreward(trajectory[-1].to.cell, reward, self.grid, seen_cells)
+                reward = IRonly(trajectory[-1].to.cell, reward, self.grid, seen_cells)
                 self.IR += reward
                 e['reward'] = reward
                 seen_cells.add(trajectory[-1].to.cell)
@@ -477,10 +483,11 @@ class Explore:
                 if elem.to.restore is not None and self.should_accept_cell(potential_cell, cur_score, full_traj_len):
                     self.grid[cell_key].chosen_since_new = 0
                     cells_to_reset.add(potential_cell_key)
-                    potential_cell.chain = cell.chain + [ChainLink(start_cell, potential_cell_key, seed)]
-                    potential_cell.trajectory = cell.trajectory + end_trajectory[:i + 1]
-                    potential_cell.trajectory_len = full_traj_len
-                    assert len(potential_cell.trajectory) == potential_cell.trajectory_len
+                    if not self.reduce_grid:
+                        potential_cell.chain = cell.chain + [ChainLink(start_cell, potential_cell_key, seed)]
+                        potential_cell.trajectory = cell.trajectory + end_trajectory[:i + 1]
+                        potential_cell.trajectory_len = full_traj_len
+                        assert len(potential_cell.trajectory) == potential_cell.trajectory_len
                     potential_cell.restore = elem.to.restore
                     assert potential_cell.restore is not None
                     potential_cell.seen = copy.copy(seen_cells)

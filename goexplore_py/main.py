@@ -40,23 +40,23 @@ LOG_DIR = None
 
 TEST_OVERRIDE = True
 SAVE_MODEL = False
-test_dict = {'log_path': ["log/test/pacman/reduced_grid"], 'base_path':['./results/test/pacman/reduced_grid'],
-			 'explorer':['repeated', 'ppo', 'mlsh'], 'game':['pacman'], 'actors':[1],
+test_dict = {'log_path': ["log/test/pacman/reduced_grid/"], 'base_path':['./results/test/pacman/reduced_grid'],
+			 'explorer':['mlsh'], 'game':['pacman'], 'actors':[1],
 			 'nexp':[1024], 'batch_size':[40], 'resolution': [16],
-			 'explore_steps':[1000],
+			 'explore_steps':[-1],
 		'lr': [1.0e-03], 'lr_decay':[ 1],
 		'cliprange':[0.1], 'cl_decay': [ 1],
-		'n_tr_epochs':[4],
+		'n_tr_epochs':[2],
 		'mbatch': [4],
 		'gamma':[0.999], 'lam':[0.95],
-		'nsubs' : [4],
+		'nsubs' : [8],
 		'timedialation': [64],
 		'master_lr': [0.01],
 		'lr_decay_master': [1],
 		'master_cl': [0.1],
 		'cl_decay_master' :[1],
-		'warmup': [ 80],
-		'train': [  40],
+		'warmup': [ 1000],
+		'train': [  1000],
 			 'with_domain': [False],
 			 'ent_mas':[0.01],
 			 'ent_sub':[0.01],
@@ -65,7 +65,7 @@ test_dict = {'log_path': ["log/test/pacman/reduced_grid"], 'base_path':['./resul
 			 'render_frameskip':[1],
 			 'prob_override':[0.3],
 			 'ignore_death':[4],
-			 'retrain_N':[None],
+			 'retrain_N':[0],
 			 'clean_up_grid':[True]
 			}
 TERM_CONDITION = True
@@ -297,7 +297,8 @@ def _run(resolution=16, score_objects=True, mean_repeat=20,
 		batch_size=batch_size,
 		reset_cell_on_update=reset_cell_on_update,
 		with_domain=with_domain,
-		load_model=load_model
+		load_model=load_model,
+		reduce_grid=clean_up_grid
 	)
 
 	if seed_path is not None:
@@ -503,7 +504,10 @@ def _run(resolution=16, score_objects=True, mean_repeat=20,
 						 print('MemoryError when saving grid checkpoint')
 					# Clean up previous checkpoint.
 					if prev_checkpoint and clear_old_checkpoints:
-						os.remove(prev_checkpoint + '.7z')
+						try:
+							os.remove(prev_checkpoint + '.7z')
+						except FileNotFoundError:
+							pass
 					prev_checkpoint = filename
 
 					# A much smaller file that should be sufficient for view folder, but not for restoring
