@@ -3,13 +3,13 @@ import gym
 import numpy as np
 
 class NChainPos:
-	__slots__ = ['state', 'level', 'score', 'tuple']
+	__slots__ = ['state', 'level', 'score', 'room', 'tuple']
 
 	def __init__(self, state):
 		self.state = state
 		self.level = 0
 		self.score = 0
-
+		self.room = 0
 		self.set_tuple()
 
 	def set_tuple(self):
