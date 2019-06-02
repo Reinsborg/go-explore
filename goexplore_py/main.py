@@ -38,9 +38,9 @@ PROFILER = None
 
 LOG_DIR = None
 
-TEST_OVERRIDE = True
+TEST_OVERRIDE = False
 SAVE_MODEL = False
-test_dict = {'log_path': ["log/test/pacman/reduced_grid/"], 'base_path':['./results/test/pacman/reduced_grid'],
+test_dict = {'log_path': ["log/debug"], 'base_path':['./results/debug'],
 			 'explorer':['mlsh'], 'game':['pacman'], 'actors':[1],
 			 'nexp':[1024], 'batch_size':[40], 'resolution': [16],
 			 'explore_steps':[-1],
