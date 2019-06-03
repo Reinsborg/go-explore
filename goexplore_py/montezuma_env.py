@@ -6,6 +6,12 @@
 #
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
+# OBS
+# This file is not in its original state as released by Uber Technologies, Inc.
+# Alteration made by:
+# Jeppe Reinsborg, 3 June 2019
+#
 
 from .import_ai import *
 from baselines.common.atari_wrappers import *
