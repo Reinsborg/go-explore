@@ -27,6 +27,7 @@ from goexplore_py.policies import *
 from tensorflow import summary, ConfigProto, Session, name_scope
 from goexplore_py.myUtil import makeHistProto
 from itertools import product as itproduct, islice
+from rl_algs.common import tf_util as U
 
 from diverseExplorer import PPOExplorer_v3 as PPOExplorer, MlshExplorer_v2 as MlshExplorer, MlshExplorer_v3 as SampleExplorer
 import resource
@@ -46,7 +47,7 @@ LOG_DIR = None
 
 TEST_OVERRIDE = True
 SAVE_MODEL = False
-test_dict = {'log_path': ["log/debug"], 'base_path':['./results/debug'],
+test_dict = {'log_path': ["log/test"], 'base_path':['./results/test'],
 			 'explorer':['sample_mlsh'], 'game':['pacman'], 'actors':[1],
 			 'nexp':[2000], 'batch_size':[40], 'resolution': [16],
 			 'explore_steps':[128],
@@ -61,8 +62,8 @@ test_dict = {'log_path': ["log/debug"], 'base_path':['./results/debug'],
 		'lr_decay_master': [1],
 		'master_cl': [0.1],
 		'cl_decay_master' :[1],
-		'warmup': [ 9],
-		'train': [  1],
+		'warmup': [ 20],
+		'train': [  10],
 			 'with_domain': [False],
 			 'ent_mas':[0.01],
 			 'ent_sub':[0.01],
@@ -563,6 +564,8 @@ def _run(resolution=16, score_objects=True, mean_repeat=20,
 				for sub in expl.explorer.subs:
 					sub.save(f'{base_path}/{sub}')
 					sub.save(f'{logDir}/{sub}')
+			if SAVE_MODEL and isinstance(expl.explorer, SampleExplorer):
+				U.save_state(f'{logDir}/mlsh_explorer')
 			#print(expl.explorer.__repr__())
 			if sess is not None:
 				sess.__exit__(None, None, None)

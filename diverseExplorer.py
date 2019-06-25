@@ -1438,18 +1438,17 @@ class GoalCondEnv:
 		if not self.done:
 			obs, rew, done, lol = self.env.step(ac)
 
-			if not done:
-				if self.env.pos.level == self.goalPos.level:
-					distance = np.sqrt((self.env.pos.x -self.goalPos.x)**2 + (self.env.pos.y - self.goalPos.y)**2)
-					rew = -distance/100
-					if distance < 4:
-
-						done = True
-
-				else:
-					rew = -10
+			if self.env.pos.level == self.goalPos.level:
+				distance = np.sqrt((self.env.pos.x - self.goalPos.x) ** 2 + (self.env.pos.y - self.goalPos.y) ** 2)
 			else:
-				rew = -10*self.timeLimit
+				distance = 400
+
+			if not done:
+				rew = -distance / 100
+				if distance < 4:
+					done = True
+			else:
+				rew = -distance*(self.timeLimit)/100
 			if self.t == self.timeLimit:
 				done = True
 			self.done = done
