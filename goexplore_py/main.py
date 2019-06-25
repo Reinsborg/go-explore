@@ -28,7 +28,7 @@ from tensorflow import summary, ConfigProto, Session, name_scope
 from goexplore_py.myUtil import makeHistProto
 from itertools import product as itproduct, islice
 
-from diverseExplorer import PPOExplorer_v3 as PPOExplorer, MlshExplorer_v2 as MlshExplorer
+from diverseExplorer import PPOExplorer_v3 as PPOExplorer, MlshExplorer_v2 as MlshExplorer, MlshExplorer_v3 as SampleExplorer
 import resource
 VERSION = 1
 
@@ -44,25 +44,25 @@ PROFILER = None
 
 LOG_DIR = None
 
-TEST_OVERRIDE = False
+TEST_OVERRIDE = True
 SAVE_MODEL = False
 test_dict = {'log_path': ["log/debug"], 'base_path':['./results/debug'],
-			 'explorer':['mlsh'], 'game':['pacman'], 'actors':[1],
-			 'nexp':[1024], 'batch_size':[40], 'resolution': [16],
-			 'explore_steps':[-1],
-		'lr': [1.0e-03], 'lr_decay':[ 1],
+			 'explorer':['sample_mlsh'], 'game':['pacman'], 'actors':[1],
+			 'nexp':[2000], 'batch_size':[40], 'resolution': [16],
+			 'explore_steps':[128],
+		'lr': [3e-5], 'lr_decay':[ 1],
 		'cliprange':[0.1], 'cl_decay': [ 1],
-		'n_tr_epochs':[2],
-		'mbatch': [4],
-		'gamma':[0.999], 'lam':[0.95],
+		'n_tr_epochs':[10],
+		'mbatch': [15],
+		'gamma':[0.99], 'lam':[0.98],
 		'nsubs' : [8],
-		'timedialation': [64],
+		'timedialation': [20],
 		'master_lr': [0.01],
 		'lr_decay_master': [1],
 		'master_cl': [0.1],
 		'cl_decay_master' :[1],
-		'warmup': [ 1000],
-		'train': [  1000],
+		'warmup': [ 9],
+		'train': [  1],
 			 'with_domain': [False],
 			 'ent_mas':[0.01],
 			 'ent_sub':[0.01],
@@ -72,7 +72,7 @@ test_dict = {'log_path': ["log/debug"], 'base_path':['./results/debug'],
 			 'prob_override':[0.3],
 			 'ignore_death':[4],
 			 'retrain_N':[0],
-			 'clean_up_grid':[True]
+			 'clean_up_grid':[False]
 			}
 TERM_CONDITION = True
 NSAMPLES = 4
@@ -147,9 +147,10 @@ def _run(resolution=16, score_objects=True, mean_repeat=20,
 		 pacmanScoreRes = None,
 		 render = None,
 		 render_frameskip = 4,
-		 clean_up_grid = False
+		 clean_up_grid = False,
 
 		 ):
+	np.seterr(divide='raise', invalid='raise')
 	sess = None
 	if game == "robot":
 		explorer = RepeatedRandomExplorerRobot()
@@ -186,6 +187,23 @@ def _run(resolution=16, score_objects=True, mean_repeat=20,
 								actors=actors, nexp=nexp//timedialation, lr_mas=master_lr, lr_sub=lr, lr_decay=lr_decay_master,
 								lr_decay_sub=lr_decay, cl_decay=cl_decay_master, cl_decay_sub=cl_decay, n_tr_epochs=n_tr_epochs,
 								nminibatches=mbatch, gamma=gamma, lam=lam, cliprange_mas=master_cl, cliprange_sub=cliprange, retrain_N=retrain_N, ent_m=ent_mas, ent_s=ent_sub)
+
+	elif explorer == 'sample_mlsh':
+		ncpu = multiprocessing.cpu_count()
+		if sys.platform == 'darwin': ncpu //= 2
+		config = ConfigProto(allow_soft_placement=True,
+							 intra_op_parallelism_threads=ncpu,
+							 inter_op_parallelism_threads=ncpu)
+		config.gpu_options.allow_growth = True  # pylint: disable=E1101
+		os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+		sess = Session(config=config).__enter__()
+		if nexp is None:
+			nexp = explore_steps
+		explorer = SampleExplorer(nsubs=nsubs, timedialation=timedialation, warmup_T=warmup, train_T=train,
+								actors=actors, nexp=nexp, lr=lr, lr_decay=lr_decay,
+								cl_decay=cl_decay, n_tr_epochs=n_tr_epochs,
+								nminibatches=mbatch, gamma=gamma, lam=lam, cliprange=cliprange, retrain_N=retrain_N,
+								  )
 
 
 
@@ -305,6 +323,7 @@ def _run(resolution=16, score_objects=True, mean_repeat=20,
 		with_domain=with_domain,
 		load_model=load_model,
 		reduce_grid=clean_up_grid
+
 	)
 
 	if seed_path is not None:
@@ -722,12 +741,15 @@ if __name__ == '__main__':
 				log_path=args.log_path)
 		else:
 			keys, values = zip(*test_dict.items())
+
 			for nexp in test_dict['nexp']:
 				for mb in test_dict['mbatch']:
-					assert nexp % mb == 0, f"nexp({nexp}) not divisble by mbatch({mb})"
+					if any(x in test_dict['explorer'] for x in ['ppo', 'mlsh']):
+						assert nexp % mb == 0, f"nexp({nexp}) not divisble by mbatch({mb})"
 					for td in test_dict['timedialation']:
 						assert nexp % td == 0, f"nexp ({nexp}) not divisble by timedialation({td})"
-						assert (nexp//td) % mb == 0, f'master exp ({nexp}/{td}={nexp//td}) not divisible by mbatch ({mb})'
+						if any(x in test_dict['explorer'] for x in ['ppo', 'mlsh']):
+							assert (nexp//td) % mb == 0, f'master exp ({nexp}/{td}={nexp//td}) not divisible by mbatch ({mb})'
 
 
 

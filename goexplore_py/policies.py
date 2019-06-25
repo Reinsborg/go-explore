@@ -31,6 +31,7 @@ import numpy as np
 import tensorflow as tf
 from baselines.a2c.utils import conv, fc, conv_to_fc, batch_to_seq, seq_to_batch, lstm, lnlstm
 from baselines.common.distributions import make_pdtype
+import rl_algs.common.tf_util as U
 
 def nature_cnn(unscaled_images):
     """
@@ -150,6 +151,8 @@ class CnnPolicy(object):
 
         X = tf.placeholder(tf.uint8, ob_shape) #obs
         with tf.variable_scope(name, reuse=reuse):
+            self.scope = tf.get_variable_scope().name
+
             h = nature_cnn(X)
             pi = fc(h, 'pi', nact, init_scale=0.01)
             vf = fc(h, 'v', 1)[:,0]
@@ -172,12 +175,35 @@ class CnnPolicy(object):
         def value(ob, *_args, **_kwargs):
             return sess.run(vf, {X:ob})
 
+        def act(stoc, ob):
+            a, v = sess.run([a0, vf], {X:ob})
+            return a, v
+
+        def get_variables(self):
+            return tf.get_collection(tf.GraphKeys.VARIABLES, self.scope)
+
+        def get_trainable_variables(self):
+            return tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, self.scope)
+
+        def reset(self):
+            with tf.variable_scope(self.scope, reuse=True):
+                varlist = self.get_trainable_variables()
+                initializer = tf.variables_initializer(varlist)
+                self.sess.run(initializer)
+
+
         self.X = X
         self.pi = pi
         self.vf = vf
         self.step = step
         self.value = value
+        self.sess = sess
+        self.act = act
+        self.get_variables = get_variables
+        self.get_trainable_variables = get_trainable_variables
+        self.reset = reset
         # self.metadata = run_metadata
+
 
 
 class CnnPolicy_withDomain(object):
@@ -276,3 +302,66 @@ class MlpPolicy(object):
 #         sA =
 #
 #     def step(self, ob):
+
+class MlshPolicy(object):
+
+    def __init__(self, sess, ob, ac_space, reuse=False, name='model'): #pylint: disable=W0613
+
+
+        nact = ac_space.n
+
+
+
+        with tf.variable_scope(name, reuse=reuse):
+            self.scope = tf.get_variable_scope().name
+            X = ob
+            h = nature_cnn(X)
+            pi = fc(h, 'pi', nact, init_scale=0.01)
+            vf = fc(h, 'v', 1)[:,0]
+
+            self.pdtype = make_pdtype(ac_space)
+            self.pd = self.pdtype.pdfromflat(pi)
+
+
+
+
+        # sample actions
+        stochastic = tf.placeholder(dtype=tf.bool, shape=())
+        ac = U.switch(stochastic, self.pd.sample(), self.pd.mode())
+        self._act = U.function([stochastic, ob], [ac, vf])
+
+        a0 = self.pd.sample()
+        neglogp0 = self.pd.neglogp(a0)
+        self.initial_state = None
+
+        def step(ob, *_args, **_kwargs):
+            a, v, neglogp = sess.run([a0, vf, neglogp0], {X: ob})
+            return a, v, self.initial_state, neglogp
+
+        def value(ob, *_args, **_kwargs):
+            return sess.run(vf, {ob:ob})
+
+        self.X = X
+        self.pi = pi
+        self.selector = pi
+        self.vf = vf
+        self.vpred = vf
+        self.step = step
+        self.value = value
+        self.sess = sess
+
+    def act(self, stochastic, ob):
+        ac1, vpred1 = self._act(stochastic, ob[None])
+        return ac1[0], vpred1[0]
+
+    def get_variables(self):
+        return tf.get_collection(tf.GraphKeys.VARIABLES, self.scope)
+
+    def get_trainable_variables(self):
+        return tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, self.scope)
+
+    def reset(self):
+        with tf.variable_scope(self.scope, reuse=True):
+            varlist = self.get_trainable_variables()
+            initializer = tf.variables_initializer(varlist)
+            U.get_session().run(initializer)

@@ -127,7 +127,7 @@ class MyMsPacman:
 
 
     def __getattr__(self, e):
-        return getattr(self.env, e)
+            return getattr(self.env, e)
 
     def reset(self) -> np.ndarray:
         observation= self.env.reset()
@@ -412,3 +412,7 @@ class MyMsPacman:
     @staticmethod
     def make_pos(score, pos):
         return PacmanPosLevel(level=pos.level, x=pos.x, y=pos.y, score=score)
+
+
+
+

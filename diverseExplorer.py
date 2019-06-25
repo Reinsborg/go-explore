@@ -9,9 +9,13 @@
 import tensorflow as tf
 import numpy as np
 import gym
+from mlsh_code import rollouts
+from mlsh_code.learner import Learner
 
 from goexplore_py import ppo2, policies
 from baselines.common.atari_wrappers import *
+from mpi4py import MPI
+import rl_algs.common.tf_util as U
 
 def clipreward(newcell, gameReward, grid, seen):
 	return ((newcell not in grid) and newcell not in seen) + np.clip(gameReward,-1,1)
@@ -1411,3 +1415,211 @@ class MlshExplorer_v2:
 		return 'mlsh'
 
 
+class GoalCondEnv:
+	def __init__(self, MsPacmanEnv):
+		self.env = MsPacmanEnv
+		self.done = True
+		self.timeLimit = 500
+
+	def __getattr__(self, e):
+		return getattr(self.env, e)
+
+	def setGoal(self, startRestore, goalPos):
+		self.startRestore = startRestore
+		self.goalPos = goalPos
+
+	def reset(self):
+		self.done = False
+		self.t = 0
+		return self.env.restore(self.startRestore)
+
+	def step(self, ac):
+		self.t +=1
+		if not self.done:
+			obs, rew, done, lol = self.env.step(ac)
+
+			if not done:
+				if self.env.pos.level == self.goalPos.level:
+					distance = np.sqrt((self.env.pos.x -self.goalPos.x)**2 + (self.env.pos.y - self.goalPos.y)**2)
+					rew = -distance/100
+					if distance < 4:
+
+						done = True
+
+				else:
+					rew = -10
+			else:
+				rew = -10*self.timeLimit
+			if self.t == self.timeLimit:
+				done = True
+			self.done = done
+		else:
+			obs = self.env._get_ob()
+			rew = 0
+			done = True
+			lol = None
+
+
+		return obs, rew, done, lol
+
+
+def rand_selector(grid, ngoals):
+	cell_keys = list( grid.keys() )
+	return np.random.choice(cell_keys, ngoals)
+
+class MlshExplorer_v3:
+	def __init__(self, nsubs, timedialation, warmup_T, train_T,  actors, nexp=2000, lr=3e-5, retrain_N = None,
+				 lr_decay=1., cl_decay=1., nminibatches=15, n_tr_epochs=10,
+				 cliprange=0.2,  gamma=0.99, lam=0.98,
+				 train_goals_pr_it=1, goal_selector=rand_selector):
+
+
+
+
+
+		# PPO related
+		self.nsteps = nexp
+		self.batch = self.nsteps * actors
+		self.lr = lr
+		self.lr_decay = lr_decay
+		self.cl_decay = cl_decay
+
+
+
+
+		self.states = None
+		self.gamma = gamma
+		self.lam = lam
+		self.n_train_epoch = n_tr_epochs
+		self.cliprange = cliprange
+		self.nBatches = nminibatches
+
+		# MLSH
+		self.master = None
+		self.subs = None
+		self.nsubs = nsubs
+		self.time_dialation = timedialation
+		self.warm_up_T = warmup_T
+		self.warm_up_done = False
+		self.train_t = train_T
+		self.retrain_N = retrain_N
+		self.cur_sub = None
+		self.t = 0
+		self.reward_m = 0
+		self.reward = 0
+		self.reset_count = 0
+
+
+		self.obs = None
+		self.domain = []
+		self.env = None
+
+		self.tr_pr_it = train_goals_pr_it
+		self.goal_selector = goal_selector
+
+
+
+
+	def init_model(self, env, masterPolicy=policies.MlshPolicy, subPolicies=policies.MlshPolicy):
+
+
+		self.env = GoalCondEnv(env) #TODO should be made as a propper wrapper in future version but is not applicable
+									# because the go-explore evironments arent made as wrapper
+
+		ob_space = env.observation_space
+		ac_space = gym.spaces.Discrete(self.nsubs)
+		sess = tf.get_default_session()
+
+		nh, nw, nc = ob_space.shape
+		ob_shape = (None, nh, nw, nc)
+		ob = U.get_placeholder(dtype=tf.uint8, shape=ob_shape, name='ob')  # obs
+
+		self.master = masterPolicy( sess=sess, ob=ob, ac_space=ac_space,  reuse=False, name='Master')
+		self.old_master = masterPolicy(sess=sess, ob=ob, ac_space=ac_space, reuse=False, name='old_Master')
+
+
+		self.subs = [subPolicies(sess=sess, ob=ob, ac_space=env.action_space, name=f'Sub_{i}') for i in range(self.nsubs)]
+		self.old_subs = [subPolicies(sess=sess, ob=ob, ac_space=env.action_space, name=f'old_Sub_{i}') for i in range(self.nsubs)]
+
+		self.obs = np.zeros((1,) + ob_space.shape, dtype=self.master.X.dtype.name)
+
+		# The comm object is needed for the mlsh learner, but should have no function when there is only one rank
+		rank = MPI.COMM_WORLD.Get_rank()
+		world_group = MPI.COMM_WORLD.Get_group()
+		mygroup = rank % 10
+		theta_group = world_group.Incl([x for x in range(MPI.COMM_WORLD.size) if (x % 10 == mygroup)])
+		comm = MPI.COMM_WORLD.Create(theta_group)
+		comm.Barrier()
+		self.learner = Learner(self.env, self.master, self.old_master, self.subs, self.old_subs, comm, clip_param=self.cliprange, entcoeff=0,
+						  optim_epochs=self.n_train_epoch, optim_stepsize=self.lr, optim_batchsize=64)
+		args = lambda :None
+		args.replay = False
+		args.force_subpolicy = None
+		self.rollout = rollouts.traj_segment_generator(self.master, self.subs, self.env, self.time_dialation, horizon=self.nsteps,
+												  stochastic=True, args=args)
+
+		self.learner.syncSubpolicies()
+
+
+	def init_seed(self):
+		# self.exp = 0
+		# self.mb_obs, self.mb_rewards, self.mb_actions, self.mb_values, self.mb_dones, self.mb_neglogpacs = [],[],[],[],[],[]
+		pass
+
+	def init_trajectory(self, obs, domain):
+		pass
+
+
+
+	def seen_state(self, e):
+		pass
+
+
+
+
+
+	def train(self, startRestores, goalPoss):
+		train_means = []
+		for start, goal in zip(startRestores, goalPoss):
+			self.env.setGoal(start,goal)
+			self.master.reset()
+			self.learner.syncMasterPolicies()
+
+			mini_ep = 0
+			totalmeans = []
+			while mini_ep < self.warm_up_T + self.train_t:
+				mini_ep += 1
+				# rollout
+				rolls = self.rollout.__next__()
+				allrolls = []
+				allrolls.append(rolls)
+				# train theta
+				rollouts.add_advantage_macro(rolls, self.time_dialation, self.gamma, self.lam)
+				gmean, lmean = self.learner.updateMasterPolicy(rolls)
+				# train phi
+				test_seg = rollouts.prepare_allrolls(allrolls, self.time_dialation, self.gamma, self.lam, num_subpolicies=self.nsubs)
+				self.learner.updateSubPolicies(test_seg, num_batches=self.nBatches, optimize=(mini_ep >= self.warm_up_T))
+				# learner.updateSubPolicies(test_seg,
+				# log
+				totalmeans.append(gmean)
+			train_means.append(totalmeans)
+		return train_means
+
+
+
+	def get_action(self, state, env):
+
+		self.obs[:] = state
+		if self.t  == 0:
+			self.cur_sub = np.random.random_integers(0,self.nsubs-1)
+
+		actions,_,_,_ = self.subs[self.cur_sub].step(self.obs)
+
+		self.t += 1
+		self.t %= self.time_dialation
+		return actions
+
+
+
+	def __repr__(self):
+		return 'sample_mlsh'

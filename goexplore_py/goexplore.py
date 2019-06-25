@@ -20,6 +20,7 @@ from .utils import *
 import loky
 from tensorflow import summary
 from diverseExplorer import clipreward, IRonly
+from goexplore_py.myUtil import makeHistProto
 
 class LPool:
     def __init__(self, n_cpus, maxtasksperchild=100):
@@ -115,7 +116,8 @@ class Explore:
             reset_cell_on_update=False,
             with_domain = False,
             load_model = None,
-            reduce_grid = False
+            reduce_grid = False,
+
     ):
         global POOL, ENV
         self.env_info = env
@@ -161,6 +163,13 @@ class Explore:
                 self.explorer.init_model(get_env(), policy=goexplore_py.policies.CnnPolicy)
             elif isinstance(get_env().observation_space, gym.spaces.MultiBinary):
                 self.explorer.init_model(get_env(), policy=goexplore_py.policies.MlpPolicy)
+            else:
+                raise Exception("Unkown observation space")
+        elif self.explorer.__repr__() == "sample_mlsh":
+            if isinstance(get_env().observation_space, gym.spaces.Box):
+                self.explorer.init_model(get_env(), masterPolicy=goexplore_py.policies.MlshPolicy, subPolicies=goexplore_py.policies.MlshPolicy)
+            elif isinstance(get_env().observation_space, gym.spaces.MultiBinary):
+                self.explorer.init_model(get_env(), masterPolicy=goexplore_py.policies.MlpPolicy, subPolicies=goexplore_py.policies.MlpPolicy)
             else:
                 raise Exception("Unkown observation space")
 
@@ -510,7 +519,17 @@ class Explore:
                 self.grid[cell_key].chosen_times = 0
                 self.grid[cell_key].chosen_since_new = 0
 
+        if self.explorer.__repr__() == "sample_mlsh":
+            goal_keys = self.explorer.goal_selector(self.grid, self.explorer.tr_pr_it)
+            goals = (self.grid[key].real_cell for key in goal_keys)
+            start_restores = (self.grid[self.grid[key].chain[-min(len(self.grid[key].chain), np.random.random_integers(5,20))].start_cell ].restore for key in goal_keys)
+            means = self.explorer.train(start_restores, goals)
+            means = np.mean(means, axis=0)
+            histmean = makeHistProto (dict(zip(range(len(means)), means)), bins=len(means))
 
+            self.summary.append(summary.Summary.Value(tag="mlsh_means", histo=histmean))
+            self.summary.append(summary.Summary.Value(tag="mlsh_steps",
+                simple_value=len(means)*self.explorer.tr_pr_it*self.explorer.nsteps ) )
 
         return [(k) for k, c, s, n, shape, pix in chosen_cells], trajectories
 
@@ -522,3 +541,5 @@ class Explore:
                     (full_traj_len < potential_cell.trajectory_len and
                      cur_score == potential_cell.score))
         return full_traj_len < potential_cell.trajectory_len
+
+
