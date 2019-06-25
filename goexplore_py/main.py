@@ -51,8 +51,8 @@ test_dict = {'log_path': ["log/test"], 'base_path':['./results/test'],
 			 'explorer':['sample_mlsh'], 'game':['pacman'], 'actors':[1],
 			 'nexp':[2000], 'batch_size':[40], 'resolution': [16],
 			 'explore_steps':[128],
-		'lr': [3e-5], 'lr_decay':[ 1],
-		'cliprange':[0.1], 'cl_decay': [ 1],
+		'lr': [3e-4], 'lr_decay':[ 1],
+		'cliprange':[0.2], 'cl_decay': [ 1],
 		'n_tr_epochs':[10],
 		'mbatch': [15],
 		'gamma':[0.99], 'lam':[0.98],
@@ -62,7 +62,7 @@ test_dict = {'log_path': ["log/test"], 'base_path':['./results/test'],
 		'lr_decay_master': [1],
 		'master_cl': [0.1],
 		'cl_decay_master' :[1],
-		'warmup': [ 20],
+		'warmup': [ 10],
 		'train': [  10],
 			 'with_domain': [False],
 			 'ent_mas':[0.01],
@@ -368,6 +368,11 @@ def _run(resolution=16, score_objects=True, mean_repeat=20,
 			logDir = f'{logDir}_subs_{nsubs}_td_{timedialation}_WU_{warmup}_tr_{train}_exp_{nexp}' \
 				f'_lrM_{master_lr}_lrDM_{lr_decay_master}_clM_{master_cl}' \
 				f'_clDM_{cl_decay_master}_lrS_{lr}_lrDS_{lr_decay}_clS_{cliprange}_clDS_{cl_decay}' \
+				f'_rt_{retrain_N}' \
+				f'_mb_{mbatch}_trEp_{n_tr_epochs}_gam_{gamma}_lam_{lam}'
+		if  explorer.__repr__() == 'sample_mlsh':
+			logDir = f'{logDir}_subs_{nsubs}_td_{timedialation}_WU_{warmup}_tr_{train}_exp_{nexp}' \
+				f'_lr_{lr}__cl_{cliprange}' \
 				f'_rt_{retrain_N}' \
 				f'_mb_{mbatch}_trEp_{n_tr_epochs}_gam_{gamma}_lam_{lam}'
 		logDir = f'{logDir}_{time.time()}'

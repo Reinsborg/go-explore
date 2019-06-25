@@ -1443,12 +1443,17 @@ class GoalCondEnv:
 			else:
 				distance = 400
 
-			if not done:
-				rew = -distance / 100
-				if distance < 4:
-					done = True
-			else:
-				rew = -distance*(self.timeLimit)/100
+			# if not done:
+			# 	rew = -distance / 100
+			# 	if distance < 4:
+			# 		done = True
+			# else:
+			# 	rew = -distance*(self.timeLimit)/100
+
+			rew = 1 - (distance/400)**0.4
+			if distance < 4:
+				done = True
+				rew = (self.timeLimit-self.t)**2
 			if self.t == self.timeLimit:
 				done = True
 			self.done = done
